@@ -14,6 +14,7 @@ import           Data.Attoparsec.ByteString.Char8
 import qualified Data.Text as T
 import Data.Time.Calendar (Day)
 import Data.Time.Format (parseTimeM)
+import Data.Monoid ((<>))
 
 type MT940Date = Day
 
@@ -41,6 +42,12 @@ isSwiftCharacter c =
 swiftCharacter :: Parser Char
 swiftCharacter = satisfy isSwiftCharacter <?> "SwiftCharacter"
 
+isSwiftAlpha :: Char -> Bool
+isSwiftAlpha c = (c >= 'A' && c <= 'Z')
+
+swiftAlpha :: Parser Char
+swiftAlpha = satisfy isSwiftAlpha <?> "SwiftAlpha"
+
 data CreditDebitMark = Credit | Debit deriving (Show)
 
 creditDebit :: Parser CreditDebitMark
@@ -62,6 +69,24 @@ newtype Amount = Amount Double deriving (Show, Eq, Ord)
 newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
 newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
 
+
+newtype IBAN = IBAN T.Text deriving (Show, Eq)
+
+iban :: Parser IBAN
+iban = IBAN . T.pack <$> count 35 swiftCharacter
+
+-- | Bank Identifier Code
+newtype BIC = BIC T.Text deriving (Show, Eq)
+
+-- TODO FIX
+bic :: Parser BIC
+bic = do
+    a <- count 4 swiftAlpha
+    b <- count 2 swiftAlpha
+    c <- count 2 digit
+    d <- option mempty $ count 3 digit
+    return $ BIC $ T.pack (a <> b <> c <> d)
+
 -- | `:20:`
 data TransactionReferenceNumber = TransactionReferenceNumber
     { _transactionReferenceNumber :: T.Text
@@ -79,13 +104,26 @@ data RelatedReference = RelatedReference
     } deriving (Show)
 
 -- | `:25:`
-newtype AccountIdentification = AccountIdentification T.Text deriving (Show)
+newtype AccountIdentification = AccountIdentification IBAN deriving (Show)
 
 accountIdentification :: Parser AccountIdentification
 accountIdentification = do
     _ <- ":25:" <?> ":25: Account Identification Prefix"
-    id <- T.pack <$> count 35 swiftCharacter <?> ":25: Account Identification"
+    id <- iban <?> ":25: Account Identification"
     return $ AccountIdentification id
+
+-- | `:25P:`
+data AccountIdentificationIdentifierCode = AccountIdentificationIdentifierCode
+    { _accountIdentificationIdentifierCodeAccount :: IBAN
+    , _accountIdentificationIdentifierCodeIdentifierCode :: BIC
+    }
+
+accountIdentificationIdentifierCode :: Parser AccountIdentificationIdentifierCode
+accountIdentificationIdentifierCode = do
+    _ <- ":25P:" <?> ":25P: AccountIdentificationIdentifierCode Prefix"
+    id <- iban <?> ":25P: Account Identification"
+    bic <- bic <?> ":25P: Identifier Code (BIC)"
+    return $ AccountIdentificationIdentifierCode id bic
 
 -- | `:28C:`
 data StatementNumberSeqNumber = StatementNumberSeqNumber
