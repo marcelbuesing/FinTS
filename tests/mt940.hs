@@ -10,7 +10,7 @@ import FinTS.Data.MT940
 
 transactionReferenceNumberTest :: Assertion
 transactionReferenceNumberTest =
-  parseOnly transactionReference raw @?= Right eGphdt
+  parseOnly transactionReferenceNumber raw @?= Right expected
   where raw = ":20:s000000000587017"
         expected = TransactionReference "s000000000587017"
 

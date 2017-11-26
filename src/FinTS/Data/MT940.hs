@@ -64,7 +64,10 @@ data TransactionReferenceNumber = TransactionReferenceNumber
     }  deriving (Show, Read)
 
 transactionReferenceNumber :: Parser TransactionReferenceNumber
-transactionReferenceNumber = read <$> count 16 swiftCharacter <?> "TransactionReferenceNumber"
+transactionReferenceNumber = do
+    _ <- string ":20:" <?> "TransactionReferenceNumber Prefix"
+    n <- T.pack <$> count 16 swiftCharacter <?> "TransactionReferenceNumber"
+    return $ TransactionReferenceNumber n
 
 -- | `:21:`
 data RelatedReference = RelatedReference
