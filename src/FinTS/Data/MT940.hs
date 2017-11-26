@@ -91,8 +91,7 @@ statementNumberSeqNumber :: Parser StatementNumberSeqNumber
 statementNumberSeqNumber = do
     _ <- string ":28C:" <?> "StatementNumberSeqNumber Prefix"
     stn <- StatementNumber . read <$> count 5 digit <?> "StatementNumber"
-    _ <- char '/' <?> "Separation Character"
-    sqn <- option Nothing $ ((Just . SeqNumber . read) <$> count 5 digit <?> "SequenceNumber")
+    sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber . read) <$> count 5 digit <?> "SequenceNumber")
     return $ StatementNumberSeqNumber stn sqn
 
 -- | `:60a:`
