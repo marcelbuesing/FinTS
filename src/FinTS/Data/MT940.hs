@@ -69,8 +69,8 @@ data TransactionReferenceNumber = TransactionReferenceNumber
 
 transactionReferenceNumber :: Parser TransactionReferenceNumber
 transactionReferenceNumber = do
-    _ <- string ":20:" <?> "TransactionReferenceNumber Prefix"
-    n <- T.pack <$> count 16 swiftCharacter <?> "TransactionReferenceNumber"
+    _ <- string ":20:" <?> ":20: TransactionReferenceNumber Prefix"
+    n <- T.pack <$> count 16 swiftCharacter <?> ":20: TransactionReferenceNumber"
     return $ TransactionReferenceNumber n
 
 -- | `:21:`
@@ -79,7 +79,13 @@ data RelatedReference = RelatedReference
     } deriving (Show)
 
 -- | `:25:`
-data AccountIdentification = AccountIdentification {} deriving (Show)
+newtype AccountIdentification = AccountIdentification T.Text deriving (Show)
+
+accountIdentification :: Parser AccountIdentification
+accountIdentification = do
+    _ <- ":25:" <?> ":25: Account Identification Prefix"
+    id <- T.pack <$> count 35 swiftCharacter <?> ":25: Account Identification"
+    return $ AccountIdentification id
 
 -- | `:28C:`
 data StatementNumberSeqNumber = StatementNumberSeqNumber
@@ -89,9 +95,9 @@ data StatementNumberSeqNumber = StatementNumberSeqNumber
 
 statementNumberSeqNumber :: Parser StatementNumberSeqNumber
 statementNumberSeqNumber = do
-    _ <- string ":28C:" <?> "StatementNumberSeqNumber Prefix"
-    stn <- StatementNumber . read <$> count 5 digit <?> "StatementNumber"
-    sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber . read) <$> count 5 digit <?> "SequenceNumber")
+    _ <- string ":28C:" <?> ":28C: StatementNumberSeqNumber Prefix"
+    stn <- StatementNumber . read <$> count 5 digit <?> ":28C: StatementNumber"
+    sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber . read) <$> count 5 digit <?> ":28C: SequenceNumber")
     return $ StatementNumberSeqNumber stn sqn
 
 -- | `:60a:`
