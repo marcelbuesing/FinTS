@@ -7,6 +7,8 @@
 
 module FinTS.Data.MT940 where
 
+import           Control.Applicative ((<|>))
+import Data.ISO3166_CountryCodes (CountryCode)
 import           Data.Attoparsec.ByteString.Char8
 import qualified Data.Text as T
 import Data.Time.Calendar (Day)
@@ -14,77 +16,120 @@ import Data.Time.Format (parseTimeM)
 
 type MT940Date = Day
 
-data CreditDebit = Credit | Debit deriving (Show)
+-- | https://www2.swift.com/uhbonline/books/public/en_uk/usgi_20160722/con_31519.htm
+-- | Appendix Supported Characters - https://deutschebank.nl/nl/docs/MT94042_EN.pdf
+isSwiftCharacter :: Char -> Bool
+isSwiftCharacter c =
+    (c >= 'a' && c <= 'z') ||
+    (c >= 'A' && c <= 'Z') ||
+    (c >= '0' && c <= '9') ||
+    (c == '\040') || -- ` ` space
+    (c == '\047') || -- `'`
+    (c == '\050') || -- `(`
+    (c == '\051') || -- `)`
+    (c == '\053') || -- `+`
+    (c == '\054') || -- `,`
+    (c == '\055') || -- `-`
+    (c == '\056') || -- `.`
+    (c == '\057') || -- `/`
+    (c == '\072') || -- `:`
+    (c == '\077') || -- `?`
+    (c == '\173') || -- `{`
+    (c == '\175')    -- `}`
+
+swiftCharacter :: Parser Char
+swiftCharacter = satisfy isSwiftCharacter <?> "SwiftCharacter"
+
+data CreditDebitMark = Credit | Debit deriving (Show)
+creditDebit :: Parser CreditDebitMark
+creditDebit = do
+      (char 'C' >> return Credit)
+  <|> (char 'D' >> return Debit)
 
 data TransactionTypeIdentCode = N | F deriving (Show)
 
---newtype TransactionRefN = TransactionRefN T.Text
+transactionTypeIdentCode :: Parser TransactionTypeIdentCode
+transactionTypeIdentCode = do
+      (char 'N' >> return N)
+  <|> (char 'F' >> return F)
+
 newtype BankReference = BankReference T.Text deriving (Show)
 newtype TransactionNumber = TransactionNumber T.Text deriving (Show)
-newtype IsoCurrencyCode = IsoCurrencyCode T.Text deriving (Show)
+newtype IsoCurrencyCode = IsoCurrencyCode CountryCode deriving (Show)
 newtype Amount = Amount Double deriving (Show)
 
 -- | `:20:`
 data TransactionReferenceNumber = TransactionReferenceNumber
-    { _transactionReferenceNumber :: T.Text 
-    }  deriving (Show) 
+    { _transactionReferenceNumber :: T.Text
+    }  deriving (Show, Read)
+
+transactionReferenceNumber :: Parser TransactionReferenceNumber
+transactionReferenceNumber = read <$> count 16 swiftCharacter <?> "TransactionReferenceNumber"
 
 -- | `:21:`
 data RelatedReference = RelatedReference
-    { _relatedReference :: T.Text 
-    } deriving (Show) 
+    { _relatedReference :: T.Text
+    } deriving (Show)
 
 -- | `:25:`
-data AccountIdentification = AccountIdentification {} deriving (Show) 
+data AccountIdentification = AccountIdentification {} deriving (Show)
 
 -- | `:28C:`
-data StatementNumberSeqNumber = StatementNumberSeqNumber {} deriving (Show) 
+data StatementNumberSeqNumber = StatementNumberSeqNumber {} deriving (Show)
 
--- | `:60:`
+-- | `:60F:`
 data OpeningBalance = OpeningBalance
-    { _openingBalanceMark :: CreditDebit
+    { _openingBalanceMark :: CreditDebitMark
     , _openingBalanceStatementDate :: MT940Date
     , _openingBalanceCurrency :: IsoCurrencyCode
     , _openingBalanceAmount :: Amount
-    } deriving (Show) 
+    } deriving (Show)
+
+-- | `:60M:`
+data IntermediateBalance = IntermediateBalance
+    { _intermediateBalanceMark :: CreditDebitMark
+    , _intermediateBalanceStatementDate :: MT940Date
+    , _intermediateBalanceCurrency :: IsoCurrencyCode
+    , _intermediateBalanceAmount :: Amount
+    } deriving (Show)
 
 -- | `:61:`
 data StatementLine = StatementLine
     { _statementLineValueDate :: MT940Date
-    , _statementLineMark :: CreditDebit
+    , _statementLineMark :: CreditDebitMark
     , _statementLineAmount :: Amount
     , _statementLineTransactionTypeIdentificationCode :: TransactionTypeIdentCode
     , _statementLineTransactionNumber :: TransactionNumber
     , _statementLineBankReference :: BankReference
     , _statementLineSupplementaryDetails :: T.Text
-    } deriving (Show) 
+    } deriving (Show)
 
 -- | `:86:`
-data InformationToAccountOwner = InformationToAccountOwner {} deriving (Show) 
+data InformationToAccountOwner = InformationToAccountOwner {} deriving (Show)
 
--- | `:62:`
+-- | `:62a:`
 data ClosingBalance = ClosingBalance
-    { _closingBalanceMark :: CreditDebit
+    { _closingBalanceMark :: CreditDebitMark
     , _closingBalanceStatementDate :: MT940Date
     , _closingBalanceCurrency :: IsoCurrencyCode
     , _closingBalanceAmount :: Amount
-    } deriving (Show) 
+    } deriving (Show)
 
 -- | `:64:`
 data ClosingAvailableBalance = ClosingAvailableBalance
-    { _closingAvailableBalanceMark :: CreditDebit
+    { _closingAvailableBalanceMark :: CreditDebitMark
     , _closingAvailableBalanceStatementDate :: MT940Date
     , _closingAvailableBalanceCurrency :: IsoCurrencyCode
     , _closingAvailableBalanceAmount :: Amount
-    } deriving (Show) 
+    } deriving (Show)
 
 -- | `:64:`
 data FordwardAvailableBalance = FordwardAvailableBalance
-    { _forwardAvailableBalanceMark :: CreditDebit
+    { _forwardAvailableBalanceMark :: CreditDebitMark
     , _forwardAvailableBalanceStatementDate :: MT940Date
     , _forwardAvailableBalanceCurrency :: IsoCurrencyCode
     , _forwardAvailableBalanceAmount :: Amount
-    } deriving (Show) 
+    } deriving (Show)
 
 -- | MT940 record
 data MT940Record = MT940Record
@@ -99,4 +144,4 @@ data MT940Record = MT940Record
     , _mt940Record64ClosingAvailableBalance :: Maybe ClosingAvailableBalance
     , _mt940Record65FordwardAvailableBalance :: Maybe FordwardAvailableBalance
     , _mt940Record86InformationToAccountOwner :: Maybe InformationToAccountOwner
-} deriving (Show) 
+} deriving (Show)
