@@ -4,6 +4,7 @@
 -- https://web.archive.org/web/20160725042101/http://www.societegenerale.rs/fileadmin/template/main/pdf/SGS%20MT940.pdf
 -- https://www.db-bankline.deutsche-bank.com/download/MT940_Deutschland_Structure2002.pdf
 -- http://www.sepaforcorporates.com/swift-for-corporates/account-statement-mt940-file-format-overview/
+-- https://www.ibm.com/support/knowledgecenter/en/SSRH46_3.0.0/fxhmapr2016wtxswibtxtmt940.html
 
 module FinTS.Data.MT940 where
 
@@ -41,6 +42,7 @@ swiftCharacter :: Parser Char
 swiftCharacter = satisfy isSwiftCharacter <?> "SwiftCharacter"
 
 data CreditDebitMark = Credit | Debit deriving (Show)
+
 creditDebit :: Parser CreditDebitMark
 creditDebit = do
       (char 'C' >> return Credit)
@@ -56,7 +58,9 @@ transactionTypeIdentCode = do
 newtype BankReference = BankReference T.Text deriving (Show)
 newtype TransactionNumber = TransactionNumber T.Text deriving (Show)
 newtype IsoCurrencyCode = IsoCurrencyCode CountryCode deriving (Show)
-newtype Amount = Amount Double deriving (Show)
+newtype Amount = Amount Double deriving (Show, Eq, Ord)
+newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
+newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
 
 -- | `:20:`
 data TransactionReferenceNumber = TransactionReferenceNumber
@@ -78,14 +82,33 @@ data RelatedReference = RelatedReference
 data AccountIdentification = AccountIdentification {} deriving (Show)
 
 -- | `:28C:`
-data StatementNumberSeqNumber = StatementNumberSeqNumber {} deriving (Show)
+data StatementNumberSeqNumber = StatementNumberSeqNumber
+    { _statementNumber :: StatementNumber
+    , _seqNumber       :: Maybe SeqNumber
+    } deriving (Show)
 
--- | `:60F:`
+statementNumberSeqNumber :: Parser StatementNumberSeqNumber
+statementNumberSeqNumber = do
+    _ <- string ":28C:" <?> "StatementNumberSeqNumber Prefix"
+    stn <- StatementNumber . read <$> count 5 digit <?> "StatementNumber"
+    _ <- char '/' <?> "Separation Character"
+    sqn <- option Nothing $ ((Just . SeqNumber . read) <$> count 5 digit <?> "SequenceNumber")
+    return $ StatementNumberSeqNumber stn sqn
+
+-- | `:60a:`
 data OpeningBalance = OpeningBalance
     { _openingBalanceMark :: CreditDebitMark
     , _openingBalanceStatementDate :: MT940Date
     , _openingBalanceCurrency :: IsoCurrencyCode
     , _openingBalanceAmount :: Amount
+    } deriving (Show)
+
+-- | `:60F:`
+data FirstOpeningBalance = FirstOpeningBalance
+    { _firstOpeningBalanceMark :: CreditDebitMark
+    , _firstOpeningBalanceStatementDate :: MT940Date
+    , _firstOpeningBalanceCurrency :: IsoCurrencyCode
+    , _firstOpeningBalanceAmount :: Amount
     } deriving (Show)
 
 -- | `:60M:`
@@ -107,15 +130,28 @@ data StatementLine = StatementLine
     , _statementLineSupplementaryDetails :: T.Text
     } deriving (Show)
 
--- | `:86:`
-data InformationToAccountOwner = InformationToAccountOwner {} deriving (Show)
-
--- | `:62a:`
+-- | `:62:`
 data ClosingBalance = ClosingBalance
     { _closingBalanceMark :: CreditDebitMark
     , _closingBalanceStatementDate :: MT940Date
     , _closingBalanceCurrency :: IsoCurrencyCode
     , _closingBalanceAmount :: Amount
+    } deriving (Show)
+
+-- | `:62M:`
+data IntermediateClosingBalance = IntermediateClosingBalance
+    { _intermediateClosingBalanceMark :: CreditDebitMark
+    , _intermediateClosingBalanceStatementDate :: MT940Date
+    , _intermediateClosingBalanceCurrency :: IsoCurrencyCode
+    , _intermediateClosingBalanceAmount :: Amount
+    } deriving (Show)
+
+-- | `:62F:`
+data FinalClosingBalance = FinalClosingBalance
+    { _finalClosingBalanceMark :: CreditDebitMark
+    , _finalClosingBalanceStatementDate :: MT940Date
+    , _finalClosingBalanceCurrency :: IsoCurrencyCode
+    , _finalClosingBalanceAmount :: Amount
     } deriving (Show)
 
 -- | `:64:`
@@ -126,13 +162,16 @@ data ClosingAvailableBalance = ClosingAvailableBalance
     , _closingAvailableBalanceAmount :: Amount
     } deriving (Show)
 
--- | `:64:`
+-- | `:65:`
 data FordwardAvailableBalance = FordwardAvailableBalance
     { _forwardAvailableBalanceMark :: CreditDebitMark
     , _forwardAvailableBalanceStatementDate :: MT940Date
     , _forwardAvailableBalanceCurrency :: IsoCurrencyCode
     , _forwardAvailableBalanceAmount :: Amount
     } deriving (Show)
+
+-- | `:86:`
+data InformationToAccountOwner = InformationToAccountOwner {} deriving (Show)
 
 -- | MT940 record
 data MT940Record = MT940Record
