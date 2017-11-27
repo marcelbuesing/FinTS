@@ -48,6 +48,10 @@ isSwiftAlpha c = (c >= 'A' && c <= 'Z')
 swiftAlpha :: Parser Char
 swiftAlpha = satisfy isSwiftAlpha <?> "SwiftAlpha"
 
+digitOrAlpha :: Parser Char
+digitOrAlpha = satisfy (\x -> isDigit x || isUpperCase x)
+    where isUpperCase c = (c >= 'A' && c <= 'Z')
+
 data CreditDebitMark = Credit | Debit deriving (Show)
 
 creditDebit :: Parser CreditDebitMark
@@ -69,23 +73,52 @@ newtype Amount = Amount Double deriving (Show, Eq, Ord)
 newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
 newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
 
-
 newtype IBAN = IBAN T.Text deriving (Show, Eq)
 
 iban :: Parser IBAN
 iban = IBAN . T.pack <$> count 35 swiftCharacter
 
+data BICBranchCode = MainOffice | OtherBranch T.Text deriving Eq
+
+instance Show BICBranchCode where
+  show MainOffice = "XXX"
+  show (OtherBranch x)= T.unpack x
+
+bicBranchCode :: Parser BICBranchCode
+bicBranchCode = do
+        (string "XXX" >> return MainOffice)
+    <|> (OtherBranch . T.pack <$> count 3 digitOrAlpha)
+
+newtype BICBankCode = BICBankCode T.Text deriving (Eq)
+
+instance Show BICBankCode where
+  show (BICBankCode x) = T.unpack x
+
+newtype BICLocationCode = BICLocationCode T.Text deriving (Eq)
+
+instance Show BICLocationCode where
+  show (BICLocationCode x) = T.unpack x
+
 -- | Bank Identifier Code
-newtype BIC = BIC T.Text deriving (Show, Eq)
+data BIC = BIC
+  { _bicBankCode :: BICBankCode
+  , _bicCountryCode :: CountryCode
+  , _bicLocationCode :: BICLocationCode
+  , _bicBranchCode :: Maybe BICBranchCode
+  } deriving (Eq)
+
+instance Show BIC where
+  show (BIC bc cc lc brc) = show bc <> show cc <> show lc <> maybe mempty show brc
 
 -- TODO FIX
 bic :: Parser BIC
 bic = do
-    a <- count 4 swiftAlpha
-    b <- count 2 swiftAlpha
-    c <- count 2 digit
-    d <- option mempty $ count 3 digit
-    return $ BIC $ T.pack (a <> b <> c <> d)
+    bankCode     <- BICBankCode . T.pack <$> count 4 swiftAlpha
+    countryCode  <- read <$> count 2 swiftAlpha
+    locationCode <- BICLocationCode . T.pack<$> count 2 digitOrAlpha
+    branchCode   <- option Nothing $ Just <$> bicBranchCode
+    return $ BIC bankCode countryCode locationCode branchCode
+
 
 -- | `:20:`
 data TransactionReferenceNumber = TransactionReferenceNumber
