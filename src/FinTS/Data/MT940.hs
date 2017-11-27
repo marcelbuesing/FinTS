@@ -113,10 +113,10 @@ instance Show BIC where
 -- TODO FIX
 bic :: Parser BIC
 bic = do
-    bankCode     <- BICBankCode . T.pack <$> count 4 swiftAlpha
-    countryCode  <- read <$> count 2 swiftAlpha
-    locationCode <- BICLocationCode . T.pack<$> count 2 digitOrAlpha
-    branchCode   <- option Nothing $ Just <$> bicBranchCode
+    bankCode     <- BICBankCode . T.pack <$> count 4 swiftAlpha <?> "BIC BankCode"
+    countryCode  <- read <$> count 2 swiftAlpha <?> "BIC CountryCode"
+    locationCode <- BICLocationCode . T.pack<$> count 2 digitOrAlpha <?> "BIC LocationCode"
+    branchCode   <- option Nothing $ Just <$> (bicBranchCode <?> "BIC BranchCode")
     return $ BIC bankCode countryCode locationCode branchCode
 
 
