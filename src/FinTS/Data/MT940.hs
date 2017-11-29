@@ -11,12 +11,26 @@ module FinTS.Data.MT940 where
 import           Control.Applicative ((<|>))
 import Data.ISO3166_CountryCodes (CountryCode)
 import           Data.Attoparsec.ByteString.Char8
+import           Data.Currency as Currency
 import qualified Data.Text as T
-import Data.Time.Calendar (Day)
+import Data.Time.Calendar (Day, fromGregorian)
 import Data.Time.Format (parseTimeM)
 import Data.Monoid ((<>))
 
 type MT940Date = Day
+
+mt940Date :: Parser MT940Date
+mt940Date = do
+  yy <- year . read <$> count 2 digit
+  mm <- read <$> count 2 digit
+  dd <- read <$> count 2 digit
+  return $ fromGregorian yy mm dd
+  where year x = if x > 90 -- regret this 2091
+                 then x + 1900
+                 else x + 2000
+
+currency :: Parser Currency.Alpha
+currency = read <$> count 3 swiftAlpha
 
 -- | https://www2.swift.com/uhbonline/books/public/en_uk/usgi_20160722/con_31519.htm
 -- | Appendix Supported Characters - https://deutschebank.nl/nl/docs/MT94042_EN.pdf
@@ -68,10 +82,17 @@ transactionTypeIdentCode = do
 
 newtype BankReference = BankReference T.Text deriving (Show)
 newtype TransactionNumber = TransactionNumber T.Text deriving (Show)
-newtype IsoCurrencyCode = IsoCurrencyCode CountryCode deriving (Show)
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
+
+-- TODO fix this leads to incorrect result double does not read comma
+amount :: Parser Amount
+amount = Amount <$> double
+
 newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
 newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
+
+countryCode :: Parser CountryCode
+countryCode = read <$> count 2 swiftAlpha <?> "CountryCode"
 
 newtype IBAN = IBAN T.Text deriving (Show, Eq)
 
@@ -114,7 +135,7 @@ instance Show BIC where
 bic :: Parser BIC
 bic = do
     bankCode     <- BICBankCode . T.pack <$> count 4 swiftAlpha <?> "BIC BankCode"
-    countryCode  <- read <$> count 2 swiftAlpha <?> "BIC CountryCode"
+    countryCode  <- countryCode
     locationCode <- BICLocationCode . T.pack<$> count 2 digitOrAlpha <?> "BIC LocationCode"
     branchCode   <- option Nothing $ Just <$> (bicBranchCode <?> "BIC BranchCode")
     return $ BIC bankCode countryCode locationCode branchCode
@@ -153,8 +174,9 @@ data AccountIdentificationIdentifierCode = AccountIdentificationIdentifierCode
 
 accountIdentificationIdentifierCode :: Parser AccountIdentificationIdentifierCode
 accountIdentificationIdentifierCode = do
-    _ <- ":25P:" <?> ":25P: AccountIdentificationIdentifierCode Prefix"
-    id <- iban <?> ":25P: Account Identification"
+    _   <- ":25P:" <?> ":25P: AccountIdentificationIdentifierCode Prefix"
+    id  <- iban <?> ":25P: Account Identification"
+    _   <- endOfLine
     bic <- bic <?> ":25P: Identifier Code (BIC)"
     return $ AccountIdentificationIdentifierCode id bic
 
@@ -175,7 +197,7 @@ statementNumberSeqNumber = do
 data OpeningBalance = OpeningBalance
     { _openingBalanceMark :: CreditDebitMark
     , _openingBalanceStatementDate :: MT940Date
-    , _openingBalanceCurrency :: IsoCurrencyCode
+    , _openingBalanceCurrency :: Currency.Alpha
     , _openingBalanceAmount :: Amount
     } deriving (Show)
 
@@ -183,15 +205,24 @@ data OpeningBalance = OpeningBalance
 data FirstOpeningBalance = FirstOpeningBalance
     { _firstOpeningBalanceMark :: CreditDebitMark
     , _firstOpeningBalanceStatementDate :: MT940Date
-    , _firstOpeningBalanceCurrency :: IsoCurrencyCode
+    , _firstOpeningBalanceCurrency :: Currency.Alpha
     , _firstOpeningBalanceAmount :: Amount
     } deriving (Show)
+
+firstOpeningBalance :: Parser FirstOpeningBalance
+firstOpeningBalance = do
+  _  <- string ":60F:"
+  cd <- creditDebit <?> ":60F: CreditDebit"
+  d  <- mt940Date <?> ":60F: Date"
+  cc <- currency <?> ":60F: Currency"
+  a  <- amount <?> ":60F: Amount"
+  return $ FirstOpeningBalance cd d cc a
 
 -- | `:60M:`
 data IntermediateBalance = IntermediateBalance
     { _intermediateBalanceMark :: CreditDebitMark
     , _intermediateBalanceStatementDate :: MT940Date
-    , _intermediateBalanceCurrency :: IsoCurrencyCode
+    , _intermediateBalanceCurrency :: Currency.Alpha
     , _intermediateBalanceAmount :: Amount
     } deriving (Show)
 
@@ -210,7 +241,7 @@ data StatementLine = StatementLine
 data ClosingBalance = ClosingBalance
     { _closingBalanceMark :: CreditDebitMark
     , _closingBalanceStatementDate :: MT940Date
-    , _closingBalanceCurrency :: IsoCurrencyCode
+    , _closingBalanceCurrency :: CountryCode
     , _closingBalanceAmount :: Amount
     } deriving (Show)
 
@@ -218,7 +249,7 @@ data ClosingBalance = ClosingBalance
 data IntermediateClosingBalance = IntermediateClosingBalance
     { _intermediateClosingBalanceMark :: CreditDebitMark
     , _intermediateClosingBalanceStatementDate :: MT940Date
-    , _intermediateClosingBalanceCurrency :: IsoCurrencyCode
+    , _intermediateClosingBalanceCurrency :: Currency.Alpha
     , _intermediateClosingBalanceAmount :: Amount
     } deriving (Show)
 
@@ -226,7 +257,7 @@ data IntermediateClosingBalance = IntermediateClosingBalance
 data FinalClosingBalance = FinalClosingBalance
     { _finalClosingBalanceMark :: CreditDebitMark
     , _finalClosingBalanceStatementDate :: MT940Date
-    , _finalClosingBalanceCurrency :: IsoCurrencyCode
+    , _finalClosingBalanceCurrency :: Currency.Alpha
     , _finalClosingBalanceAmount :: Amount
     } deriving (Show)
 
@@ -234,7 +265,7 @@ data FinalClosingBalance = FinalClosingBalance
 data ClosingAvailableBalance = ClosingAvailableBalance
     { _closingAvailableBalanceMark :: CreditDebitMark
     , _closingAvailableBalanceStatementDate :: MT940Date
-    , _closingAvailableBalanceCurrency :: IsoCurrencyCode
+    , _closingAvailableBalanceCurrency :: Currency.Alpha
     , _closingAvailableBalanceAmount :: Amount
     } deriving (Show)
 
@@ -242,7 +273,7 @@ data ClosingAvailableBalance = ClosingAvailableBalance
 data FordwardAvailableBalance = FordwardAvailableBalance
     { _forwardAvailableBalanceMark :: CreditDebitMark
     , _forwardAvailableBalanceStatementDate :: MT940Date
-    , _forwardAvailableBalanceCurrency :: IsoCurrencyCode
+    , _forwardAvailableBalanceCurrency :: Currency.Alpha
     , _forwardAvailableBalanceAmount :: Amount
     } deriving (Show)
 
