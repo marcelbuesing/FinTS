@@ -13,8 +13,10 @@ import Data.ISO3166_CountryCodes (CountryCode)
 import           Data.Attoparsec.ByteString.Char8
 import           Data.Currency as Currency
 import qualified Data.Text as T
+import qualified Data.ByteString.Char8 as B
 import Data.Time.Calendar (Day, fromGregorian)
 import Data.Time.Format (parseTimeM)
+import Data.Tuple.Curry (uncurryN)
 import Data.Monoid ((<>))
 
 type MT940Date = Day
@@ -255,13 +257,25 @@ data StatementLine = StatementLine
     , _statementLineSupplementaryDetails :: T.Text
     } deriving (Show)
 
+balance :: B.ByteString -> Parser (CreditDebitMark, MT940Date, Currency.Alpha, Amount)
+balance tag = do
+  _  <- string tag
+  cd <- creditDebit <?> B.unpack tag <> " CreditDebit"
+  d  <- mt940Date   <?> B.unpack tag <> " Date"
+  cc <- currency    <?> B.unpack tag <> " Currency"
+  a  <- amount      <?> B.unpack tag <> " Amount"
+  return $ (cd, d, cc, a)
+
 -- | `:62:`
 data ClosingBalance = ClosingBalance
     { _closingBalanceMark :: CreditDebitMark
     , _closingBalanceStatementDate :: MT940Date
-    , _closingBalanceCurrency :: CountryCode
+    , _closingBalanceCurrency :: Currency.Alpha
     , _closingBalanceAmount :: Amount
     } deriving (Show)
+
+closingBalance :: Parser ClosingBalance
+closingBalance = (uncurryN ClosingBalance) <$> (balance ":62:")
 
 -- | `:62M:`
 data IntermediateClosingBalance = IntermediateClosingBalance
@@ -271,6 +285,9 @@ data IntermediateClosingBalance = IntermediateClosingBalance
     , _intermediateClosingBalanceAmount :: Amount
     } deriving (Show)
 
+intermediateClosingBalance :: Parser IntermediateClosingBalance
+intermediateClosingBalance = (uncurryN IntermediateClosingBalance) <$> (balance ":62M:")
+
 -- | `:62F:`
 data FinalClosingBalance = FinalClosingBalance
     { _finalClosingBalanceMark :: CreditDebitMark
@@ -278,6 +295,9 @@ data FinalClosingBalance = FinalClosingBalance
     , _finalClosingBalanceCurrency :: Currency.Alpha
     , _finalClosingBalanceAmount :: Amount
     } deriving (Show)
+
+finalClosingBalance :: Parser FinalClosingBalance
+finalClosingBalance = (uncurryN FinalClosingBalance) <$> (balance ":62F:")
 
 -- | `:64:`
 data ClosingAvailableBalance = ClosingAvailableBalance
@@ -287,13 +307,19 @@ data ClosingAvailableBalance = ClosingAvailableBalance
     , _closingAvailableBalanceAmount :: Amount
     } deriving (Show)
 
+closingAvailableBalance :: Parser ClosingAvailableBalance
+closingAvailableBalance = (uncurryN ClosingAvailableBalance) <$> (balance ":64:")
+
 -- | `:65:`
-data FordwardAvailableBalance = FordwardAvailableBalance
+data ForwardAvailableBalance = ForwardAvailableBalance
     { _forwardAvailableBalanceMark :: CreditDebitMark
     , _forwardAvailableBalanceStatementDate :: MT940Date
     , _forwardAvailableBalanceCurrency :: Currency.Alpha
     , _forwardAvailableBalanceAmount :: Amount
     } deriving (Show)
+
+forwardAvailableBalance :: Parser ForwardAvailableBalance
+forwardAvailableBalance = (uncurryN ForwardAvailableBalance) <$> (balance ":65:")
 
 -- | `:86:`
 data InformationToAccountOwner = InformationToAccountOwner {} deriving (Show)
@@ -309,6 +335,6 @@ data MT940Record = MT940Record
 --, _mt940Record86InformationToAccountOwner :: Maybe InformationToAccountOwner
     , _mt940Record62aClosingBalance :: ClosingBalance
     , _mt940Record64ClosingAvailableBalance :: Maybe ClosingAvailableBalance
-    , _mt940Record65FordwardAvailableBalance :: Maybe FordwardAvailableBalance
+    , _mt940Record65FordwardAvailableBalance :: Maybe ForwardAvailableBalance
     , _mt940Record86InformationToAccountOwner :: Maybe InformationToAccountOwner
 } deriving (Show)

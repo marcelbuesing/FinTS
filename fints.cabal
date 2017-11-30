@@ -21,10 +21,13 @@ library
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11
                      , attoparsec >= 0.13
+                     , bytestring >= 0.10
                      , currency-codes == 2.0.0.0
                      , iso3166-country-codes == 0.20140203.8
                      , text >= 1.2
                      , time >= 1.8 && <1.9
+                     , tuple >= 0.3
+
   hs-source-dirs:      src
   default-language:    Haskell2010
 
