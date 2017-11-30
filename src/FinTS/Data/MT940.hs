@@ -83,7 +83,22 @@ transactionTypeIdentCode = do
   <|> (char 'F' >> return F)
 
 newtype BankReference = BankReference T.Text deriving (Show)
-newtype TransactionNumber = TransactionNumber T.Text deriving (Show)
+
+bankReference :: Parser BankReference
+bankReference = do
+  _ <- string "//"
+  BankReference . T.pack <$> count 16 swiftCharacter
+
+newtype CustomerReference = CustomerReference T.Text deriving (Show)
+
+customerReference :: Parser CustomerReference
+customerReference = CustomerReference . T.pack <$> count 16 swiftCharacter
+
+newtype FundsCode = FundsCode Char deriving (Show)
+
+fundsCode :: Parser FundsCode
+fundsCode = FundsCode <$> swiftCharacter
+
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
 
 -- TODO fix this leads to incorrect result double does not read comma
@@ -249,13 +264,29 @@ intermediateOpeningBalance = do
 -- | `:61:`
 data StatementLine = StatementLine
     { _statementLineValueDate :: MT940Date
+    , _statementLineEntryDate :: Maybe MT940Date
     , _statementLineMark :: CreditDebitMark
+    , _statementLineFundsCode :: Maybe FundsCode
     , _statementLineAmount :: Amount
     , _statementLineTransactionTypeIdentificationCode :: TransactionTypeIdentCode
-    , _statementLineTransactionNumber :: TransactionNumber
-    , _statementLineBankReference :: BankReference
+    , _statementLineCustomerReference :: CustomerReference
+    , _statementLineBankReference :: Maybe BankReference
     , _statementLineSupplementaryDetails :: T.Text
     } deriving (Show)
+
+statementLine :: Parser StatementLine
+statementLine = do
+  _         <- string ":61:"
+  valueD <- mt940Date
+  entryD <- option Nothing (Just <$> mt940Date)
+  cd     <- creditDebit
+  fc     <- option Nothing (Just <$> fundsCode)
+  amount <- amount
+  ttic   <- transactionTypeIdentCode
+  cr     <- customerReference
+  br     <- option Nothing (Just <$> bankReference)
+  sd     <- T.pack <$> count 34 swiftCharacter
+  return $ StatementLine valueD entryD cd fc amount ttic cr br sd
 
 balance :: B.ByteString -> Parser (CreditDebitMark, MT940Date, Currency.Alpha, Amount)
 balance tag = do
