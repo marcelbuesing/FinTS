@@ -201,6 +201,15 @@ data OpeningBalance = OpeningBalance
     , _openingBalanceAmount :: Amount
     } deriving (Show)
 
+openingBalance :: Parser OpeningBalance
+openingBalance = do
+  _  <- string ":60a:"
+  cd <- creditDebit <?> ":60a: CreditDebit"
+  d  <- mt940Date <?> ":60a: Date"
+  cc <- currency <?> ":60a: Currency"
+  a  <- amount <?> ":60a: Amount"
+  return $ OpeningBalance cd d cc a
+
 -- | `:60F:`
 data FirstOpeningBalance = FirstOpeningBalance
     { _firstOpeningBalanceMark :: CreditDebitMark
@@ -225,6 +234,15 @@ data IntermediateBalance = IntermediateBalance
     , _intermediateBalanceCurrency :: Currency.Alpha
     , _intermediateBalanceAmount :: Amount
     } deriving (Show)
+
+intermediateOpeningBalance :: Parser IntermediateBalance
+intermediateOpeningBalance = do
+  _  <- string ":60M:"
+  cd <- creditDebit <?> ":60M: CreditDebit"
+  d  <- mt940Date <?> ":60M: Date"
+  cc <- currency <?> ":60M: Currency"
+  a  <- amount <?> ":60M: Amount"
+  return $ IntermediateBalance cd d cc a
 
 -- | `:61:`
 data StatementLine = StatementLine
