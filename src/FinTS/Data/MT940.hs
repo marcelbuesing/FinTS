@@ -135,10 +135,10 @@ instance Show BIC where
 bic :: Parser BIC
 bic = do
     bankCode     <- BICBankCode . T.pack <$> count 4 swiftAlpha <?> "BIC BankCode"
-    countryCode  <- countryCode
+    countryCode'  <- countryCode
     locationCode <- BICLocationCode . T.pack<$> count 2 digitOrAlpha <?> "BIC LocationCode"
     branchCode   <- option Nothing $ Just <$> (bicBranchCode <?> "BIC BranchCode")
-    return $ BIC bankCode countryCode locationCode branchCode
+    return $ BIC bankCode countryCode' locationCode branchCode
 
 
 -- | `:20:`
@@ -163,8 +163,8 @@ newtype AccountIdentification = AccountIdentification IBAN deriving (Show)
 accountIdentification :: Parser AccountIdentification
 accountIdentification = do
     _ <- ":25:" <?> ":25: Account Identification Prefix"
-    id <- iban <?> ":25: Account Identification"
-    return $ AccountIdentification id
+    id' <- iban <?> ":25: Account Identification"
+    return $ AccountIdentification id'
 
 -- | `:25P:`
 data AccountIdentificationIdentifierCode = AccountIdentificationIdentifierCode
@@ -175,10 +175,10 @@ data AccountIdentificationIdentifierCode = AccountIdentificationIdentifierCode
 accountIdentificationIdentifierCode :: Parser AccountIdentificationIdentifierCode
 accountIdentificationIdentifierCode = do
     _   <- ":25P:" <?> ":25P: AccountIdentificationIdentifierCode Prefix"
-    id  <- iban <?> ":25P: Account Identification"
+    id'  <- iban <?> ":25P: Account Identification"
     _   <- endOfLine
-    bic <- bic <?> ":25P: Identifier Code (BIC)"
-    return $ AccountIdentificationIdentifierCode id bic
+    bic' <- bic <?> ":25P: Identifier Code (BIC)"
+    return $ AccountIdentificationIdentifierCode id' bic'
 
 -- | `:28C:`
 data StatementNumberSeqNumber = StatementNumberSeqNumber
