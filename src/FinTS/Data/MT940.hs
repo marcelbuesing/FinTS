@@ -8,9 +8,11 @@
 
 module FinTS.Data.MT940 where
 
-import           Control.Applicative ((<|>))
+import           Control.Applicative ((<|>), optional)
 import Data.ISO3166_CountryCodes (CountryCode)
 import           Data.Attoparsec.ByteString.Char8
+import           Data.ByteString as BS hiding (count)
+import           Data.Maybe (fromMaybe)
 import           Data.Currency as Currency
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as B
@@ -101,9 +103,23 @@ fundsCode = FundsCode <$> swiftCharacter
 
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
 
--- TODO fix this leads to incorrect result double does not read comma
+
+
+-- | double with comma
+double' :: Parser Double
+double' = do
+    d <- decimal
+    f <- fmap (fromMaybe 0) $ optional $ do
+        _ <- char ','
+        s <- takeWhile1 isDigit
+        let ln = B.length s
+            v = fromIntegral $ getInt s
+        return (v / (10 ^ ln))
+    return $! (fromIntegral d + f)
+    where getInt = BS.foldl' (\acc n -> acc * 10 + fromIntegral (n - 0x30)) 0
+
 amount :: Parser Amount
-amount = Amount <$> double
+amount = Amount <$> double'
 
 newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
 newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
