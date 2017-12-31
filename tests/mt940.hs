@@ -25,7 +25,8 @@ transactionReferenceNumberTest =
 accountIdentificationTest :: Assertion
 accountIdentificationTest =
   parseOnly accountIdentification ":25:NL08DEUT0319809633EUR" @?= Right id'
-    where iban' = IBAN NL [(IBANDigitGrouping "08"), (IBANCharGrouping "DEUT"), (IBANDigitGrouping "0319809633")]
+    where cd' = ISO7064CheckDigit "08"
+          iban' = IBAN NL cd' [IBANCharGrouping "DEUT", IBANDigitGrouping "0319809633"]
           id' = AccountIdentification iban'
 
 statementNumberSeqNumberTest :: Assertion
