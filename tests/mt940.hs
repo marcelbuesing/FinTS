@@ -2,11 +2,14 @@
 
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString.Char8 (pack)
+import           Data.ISO3166_CountryCodes (CountryCode(..))
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
+import FinTS.Data.IBAN
 import FinTS.Data.MT940
 
+main :: IO ()
 main = defaultMain $ testGroup "NMEA"
   [ testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
@@ -22,7 +25,8 @@ transactionReferenceNumberTest =
 accountIdentificationTest :: Assertion
 accountIdentificationTest =
   parseOnly accountIdentification ":25:NL08DEUT0319809633EUR" @?= Right id'
-    where id' = AccountIdentification (IBAN "NL08DEUT0319809633EUR")
+    where iban' = IBAN NL [(IBANDigitGrouping "08"), (IBANCharGrouping "DEUT"), (IBANDigitGrouping "0319809633")]
+          id' = AccountIdentification iban'
 
 statementNumberSeqNumberTest :: Assertion
 statementNumberSeqNumberTest =

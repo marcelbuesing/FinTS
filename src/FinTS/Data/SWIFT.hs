@@ -1,6 +1,7 @@
 module FinTS.Data.SWIFT where
 
 import           Data.Attoparsec.ByteString.Char8
+import           Data.ISO3166_CountryCodes (CountryCode)
 
 -- | https://www2.swift.com/uhbonline/books/public/en_uk/usgi_20160722/con_31519.htm
 -- | Appendix Supported Characters - https://deutschebank.nl/nl/docs/MT94042_EN.pdf
@@ -31,3 +32,6 @@ isSwiftAlpha c = (c >= 'A' && c <= 'Z')
 
 swiftAlpha :: Parser Char
 swiftAlpha = satisfy isSwiftAlpha <?> "SwiftAlpha"
+
+countryCode :: Parser CountryCode
+countryCode = read <$> count 2 swiftAlpha <?> "CountryCode"

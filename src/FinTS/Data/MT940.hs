@@ -98,9 +98,6 @@ amount = Amount <$> double'
 newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
 newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
 
-countryCode :: Parser CountryCode
-countryCode = read <$> count 2 swiftAlpha <?> "CountryCode"
-
 
 data BICBranchCode = MainOffice | OtherBranch T.Text deriving (Eq)
 

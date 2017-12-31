@@ -16,7 +16,9 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     FinTS.Data.MT940
+  exposed-modules:     FinTS.Data.IBAN
+                     , FinTS.Data.MT940
+                     , FinTS.Data.SWIFT
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11
@@ -40,6 +42,7 @@ test-suite test
   build-depends:       attoparsec >= 0.13
                      , base >= 4 && < 5
                      , bytestring >= 0.10
+                     , iso3166-country-codes == 0.20140203.8
                      , tasty >= 0.11
                      , tasty-hunit >= 0.9
                      , fints
