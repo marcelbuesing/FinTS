@@ -5,21 +5,25 @@
 -- https://www.db-bankline.deutsche-bank.com/download/MT940_Deutschland_Structure2002.pdf
 -- http://www.sepaforcorporates.com/swift-for-corporates/account-statement-mt940-file-format-overview/
 -- https://www.ibm.com/support/knowledgecenter/en/SSRH46_3.0.0/fxhmapr2016wtxswibtxtmt940.html
+-- https://www.hbci-zka.de/dokumente/spezifikation_deutsch/fintsv3/FinTS_3.0_Messages_Finanzdatenformate_2010-08-06_final_version.pdf
 
 module FinTS.Data.MT940 where
 
 import           Control.Applicative ((<|>), optional)
-import Data.ISO3166_CountryCodes (CountryCode)
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString as BS hiding (count)
-import           Data.Maybe (fromMaybe)
-import           Data.Currency as Currency
-import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as B
-import Data.Time.Calendar (Day, fromGregorian)
-import Data.Time.Format (parseTimeM)
-import Data.Tuple.Curry (uncurryN)
-import Data.Monoid ((<>))
+import           Data.Currency as Currency
+import           Data.ISO3166_CountryCodes (CountryCode)
+import           Data.Maybe (fromMaybe)
+import           Data.Monoid ((<>))
+import qualified Data.Text as T
+import           Data.Time.Calendar (Day, fromGregorian)
+import           Data.Time.Format (parseTimeM)
+import           Data.Tuple.Curry (uncurryN)
+
+import           FinTS.Data.SWIFT
+import           FinTS.Data.IBAN
 
 type MT940Date = Day
 
@@ -35,36 +39,6 @@ mt940Date = do
 
 currency :: Parser Currency.Alpha
 currency = read <$> count 3 swiftAlpha
-
--- | https://www2.swift.com/uhbonline/books/public/en_uk/usgi_20160722/con_31519.htm
--- | Appendix Supported Characters - https://deutschebank.nl/nl/docs/MT94042_EN.pdf
-isSwiftCharacter :: Char -> Bool
-isSwiftCharacter c =
-    (c >= 'a' && c <= 'z') ||
-    (c >= 'A' && c <= 'Z') ||
-    (c >= '0' && c <= '9') ||
-    (c == '\040') || -- ` ` space
-    (c == '\047') || -- `'`
-    (c == '\050') || -- `(`
-    (c == '\051') || -- `)`
-    (c == '\053') || -- `+`
-    (c == '\054') || -- `,`
-    (c == '\055') || -- `-`
-    (c == '\056') || -- `.`
-    (c == '\057') || -- `/`
-    (c == '\072') || -- `:`
-    (c == '\077') || -- `?`
-    (c == '\173') || -- `{`
-    (c == '\175')    -- `}`
-
-swiftCharacter :: Parser Char
-swiftCharacter = satisfy isSwiftCharacter <?> "SwiftCharacter"
-
-isSwiftAlpha :: Char -> Bool
-isSwiftAlpha c = (c >= 'A' && c <= 'Z')
-
-swiftAlpha :: Parser Char
-swiftAlpha = satisfy isSwiftAlpha <?> "SwiftAlpha"
 
 digitOrAlpha :: Parser Char
 digitOrAlpha = satisfy (\x -> isDigit x || isUpperCase x)
@@ -127,12 +101,8 @@ newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
 countryCode :: Parser CountryCode
 countryCode = read <$> count 2 swiftAlpha <?> "CountryCode"
 
-newtype IBAN = IBAN T.Text deriving (Show, Eq)
 
-iban :: Parser IBAN
-iban = IBAN . T.pack <$> count 35 swiftCharacter
-
-data BICBranchCode = MainOffice | OtherBranch T.Text deriving Eq
+data BICBranchCode = MainOffice | OtherBranch T.Text deriving (Eq)
 
 instance Show BICBranchCode where
   show MainOffice = "XXX"
@@ -177,7 +147,7 @@ bic = do
 -- | `:20:`
 data TransactionReferenceNumber = TransactionReferenceNumber
     { _transactionReferenceNumber :: T.Text
-    }  deriving (Show, Read)
+    }  deriving (Show, Eq, Read)
 
 transactionReferenceNumber :: Parser TransactionReferenceNumber
 transactionReferenceNumber = do
@@ -191,7 +161,7 @@ data RelatedReference = RelatedReference
     } deriving (Show)
 
 -- | `:25:`
-newtype AccountIdentification = AccountIdentification IBAN deriving (Show)
+newtype AccountIdentification = AccountIdentification IBAN deriving (Show, Eq)
 
 accountIdentification :: Parser AccountIdentification
 accountIdentification = do
@@ -217,14 +187,16 @@ accountIdentificationIdentifierCode = do
 data StatementNumberSeqNumber = StatementNumberSeqNumber
     { _statementNumber :: StatementNumber
     , _seqNumber       :: Maybe SeqNumber
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 statementNumberSeqNumber :: Parser StatementNumberSeqNumber
 statementNumberSeqNumber = do
     _ <- string ":28C:" <?> ":28C: StatementNumberSeqNumber Prefix"
-    stn <- StatementNumber . read <$> count 5 digit <?> ":28C: StatementNumber"
-    sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber . read) <$> count 5 digit <?> ":28C: SequenceNumber")
+    stn <- StatementNumber <$> maxFiveDigitDecimal <?> ":28C: StatementNumber"
+    sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber) <$> maxFiveDigitDecimal <?> ":28C: SequenceNumber")
     return $ StatementNumberSeqNumber stn sqn
+     -- TODO figure out a better to avoid backtracking for digits < 5
+    where maxFiveDigitDecimal = read <$> count 5 digit <|> decimal
 
 -- | `:60a:`
 data OpeningBalance = OpeningBalance
