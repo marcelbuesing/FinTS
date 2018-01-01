@@ -1,14 +1,13 @@
-module FinTS.Data.ISO13616IBAN (IBAN(..), IBANGrouping(..), ISO7064CheckDigit(..), iban) where
+module FinTS.Data.ISO13616IBAN (IBAN(..), IBANGrouping(..), iban) where
 
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ISO3166_CountryCodes (CountryCode)
 import qualified Data.Text as T
 import           Data.Monoid ((<>))
+import           FinTS.Data.ISO7064CheckDigits
 import           FinTS.Data.SWIFT
 
-newtype ISO7064CheckDigit = ISO7064CheckDigit T.Text deriving (Show, Eq)
-
-data IBAN = IBAN CountryCode ISO7064CheckDigit [IBANGrouping] deriving Eq
+data IBAN = IBAN CountryCode CheckDigits [IBANGrouping] deriving Eq
 
 instance Show IBAN where
   show (IBAN c cd g) = show c <> show cd <> foldr (\a b -> show a <> b) "" g
@@ -34,6 +33,6 @@ charGrouping x = IBANCharGrouping . T.pack <$> count x swiftAlpha
 nl :: Parser IBAN
 nl = do
   cc'   <- countryCode
-  cd'   <- ISO7064CheckDigit . T.pack <$> count 2 digit
+  cd'   <- CheckDigits . T.pack <$> count 2 digit
   grps' <-  sequence [charGrouping 4, digitGrouping 10]
   return $ IBAN cc' cd' grps'

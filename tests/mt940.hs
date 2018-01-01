@@ -7,6 +7,7 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 
 import FinTS.Data.ISO9362BIC
+import FinTS.Data.ISO7064CheckDigits
 import FinTS.Data.ISO13616IBAN
 import FinTS.Data.MT940
 
@@ -50,7 +51,7 @@ transactionReferenceNumberTest =
 accountIdentificationTest :: Assertion
 accountIdentificationTest =
   parseOnly accountIdentification ":25:NL08DEUT0319809633EUR" @?= Right id'
-    where cd' = ISO7064CheckDigit "08"
+    where cd' = CheckDigits "08"
           iban' = IBAN NL cd' [IBANCharGrouping "DEUT", IBANDigitGrouping "0319809633"]
           id' = AccountIdentification iban'
 
