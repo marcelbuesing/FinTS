@@ -12,18 +12,34 @@ import FinTS.Data.MT940
 
 main :: IO ()
 main = defaultMain $ testGroup "NMEA"
-  [ testCase "BIC" bicTest
+  [ testCase "BIC main office" bicMainOfficeTest
+  , testCase "BIC 8 char" bicEightCharTest
+  , testCase "BIC with branch" bicBranchTest
   , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
   ]
 
-bicTest :: Assertion
-bicTest =
+bicMainOfficeTest :: Assertion
+bicMainOfficeTest =
   parseOnly bic raw' @?= Right bic'
   where
     raw' = "BELADEBEXXX"
     bic' = BIC (BankCode "BELA") DE (LocationCode "BE") MainOffice
+
+bicEightCharTest :: Assertion
+bicEightCharTest =
+  parseOnly bic raw' @?= Right bic'
+  where
+    raw' = "MARKDEFF"
+    bic' = BIC (BankCode "MARK") DE (LocationCode "FF") MainOffice
+
+bicBranchTest :: Assertion
+bicBranchTest =
+  parseOnly bic raw' @?= Right bic'
+  where
+    raw' = "UBSWCHZH80A"
+    bic' = BIC (BankCode "UBSW") CH (LocationCode "ZH") (Branch "80A")
 
 transactionReferenceNumberTest :: Assertion
 transactionReferenceNumberTest =

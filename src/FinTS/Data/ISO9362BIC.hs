@@ -25,17 +25,17 @@ instance Show LocationCode where
 locationCode :: Parser LocationCode
 locationCode = LocationCode . T.pack <$> count 2 swiftAlphaNumeric
 
-data BranchCode = MainOffice | OtherBranch T.Text deriving (Eq)
+data BranchCode = MainOffice | Branch T.Text deriving (Eq)
 
 instance Show BranchCode where
   show MainOffice = "XXX"
-  show (OtherBranch x)= T.unpack x
+  show (Branch x)= T.unpack x
 
 branchCode :: Parser BranchCode
 branchCode =
-    option MainOffice
-        (string "XXX" >> return MainOffice)
-    <|> (OtherBranch . T.pack <$> count 3 swiftAlphaNumeric)
+    option MainOffice (
+        try (string "XXX" >> return MainOffice)
+    <|> try (Branch . T.pack <$> count 3 swiftAlphaNumeric))
 
 -- | Business Identifier Code (formerly known as Bank Indentifier Code)
 data BIC = BIC
