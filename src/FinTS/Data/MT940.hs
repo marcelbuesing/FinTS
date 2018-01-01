@@ -23,8 +23,8 @@ import           Data.Time.Format (parseTimeM)
 import           Data.Tuple.Curry (uncurryN)
 
 import           FinTS.Data.SWIFT
-import           FinTS.Data.ISO9362BIC
-import           FinTS.Data.ISO13616IBAN
+import           FinTS.Data.ISO9362_BIC
+import           FinTS.Data.ISO13616_IBAN
 
 type MT940Date = Day
 

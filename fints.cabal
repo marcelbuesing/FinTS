@@ -16,9 +16,9 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     FinTS.Data.ISO13616IBAN
-                     , FinTS.Data.ISO7064CheckDigits
-                     , FinTS.Data.ISO9362BIC
+  exposed-modules:     FinTS.Data.ISO13616_IBAN
+                     , FinTS.Data.ISO7064_CheckDigits
+                     , FinTS.Data.ISO9362_BIC
                      , FinTS.Data.MT940
                      , FinTS.Data.SWIFT
   -- other-modules:

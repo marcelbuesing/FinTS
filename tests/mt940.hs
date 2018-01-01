@@ -6,9 +6,9 @@ import qualified Data.ISO3166_CountryCodes as CC
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-import qualified FinTS.Data.ISO9362BIC as BIC
-import           FinTS.Data.ISO7064CheckDigits
-import qualified FinTS.Data.ISO13616IBAN as IBAN
+import qualified FinTS.Data.ISO9362_BIC as BIC
+import           FinTS.Data.ISO7064_CheckDigits
+import qualified FinTS.Data.ISO13616_IBAN as IBAN
 import           FinTS.Data.MT940
 
 main :: IO ()

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module FinTS.Data.ISO9362BIC where
+module FinTS.Data.ISO9362_BIC where
 
 import           Control.Applicative ((<|>))
 import           Data.Attoparsec.ByteString.Char8

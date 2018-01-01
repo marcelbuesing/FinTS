@@ -1,14 +1,14 @@
 -- | Internationak Bank Account Number
 -- | https://en.wikipedia.org/wiki/International_Bank_Account_Number
-module FinTS.Data.ISO13616IBAN where
+module FinTS.Data.ISO13616_IBAN where
 
 import           Data.Attoparsec.ByteString.Char8 hiding (isDigit)
 import           Data.Char
 import qualified Data.ISO3166_CountryCodes as CC
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
-import           FinTS.Data.ISO7064CheckDigits
-import qualified FinTS.Data.ISO9362BIC as BIC
+import           FinTS.Data.ISO7064_CheckDigits
+import qualified FinTS.Data.ISO9362_BIC as BIC
 import           FinTS.Data.SWIFT
 
 data IBAN = IBAN CC.CountryCode CheckDigits BBAN deriving Eq

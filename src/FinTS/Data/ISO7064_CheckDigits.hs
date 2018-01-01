@@ -1,4 +1,4 @@
-module FinTS.Data.ISO7064CheckDigits where
+module FinTS.Data.ISO7064_CheckDigits where
 
 import qualified Data.Text as T
 
