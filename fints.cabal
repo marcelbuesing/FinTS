@@ -17,6 +17,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     FinTS.Data.IBAN
+                     , FinTS.Data.ISO9362BIC
                      , FinTS.Data.MT940
                      , FinTS.Data.SWIFT
   -- other-modules:

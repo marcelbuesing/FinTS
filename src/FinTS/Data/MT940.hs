@@ -23,6 +23,7 @@ import           Data.Time.Format (parseTimeM)
 import           Data.Tuple.Curry (uncurryN)
 
 import           FinTS.Data.SWIFT
+import           FinTS.Data.ISO9362BIC
 import           FinTS.Data.IBAN
 
 type MT940Date = Day
@@ -77,8 +78,6 @@ fundsCode = FundsCode <$> swiftCharacter
 
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
 
-
-
 -- | double with comma
 double' :: Parser Double
 double' = do
@@ -97,49 +96,6 @@ amount = Amount <$> double'
 
 newtype StatementNumber = StatementNumber Integer deriving (Show, Eq, Read)
 newtype SeqNumber = SeqNumber Integer deriving (Show, Eq, Ord, Read)
-
-
-data BICBranchCode = MainOffice | OtherBranch T.Text deriving (Eq)
-
-instance Show BICBranchCode where
-  show MainOffice = "XXX"
-  show (OtherBranch x)= T.unpack x
-
-bicBranchCode :: Parser BICBranchCode
-bicBranchCode = do
-        (string "XXX" >> return MainOffice)
-    <|> (OtherBranch . T.pack <$> count 3 digitOrAlpha)
-
-newtype BICBankCode = BICBankCode T.Text deriving (Eq)
-
-instance Show BICBankCode where
-  show (BICBankCode x) = T.unpack x
-
-newtype BICLocationCode = BICLocationCode T.Text deriving (Eq)
-
-instance Show BICLocationCode where
-  show (BICLocationCode x) = T.unpack x
-
--- | Bank Identifier Code
-data BIC = BIC
-  { _bicBankCode :: BICBankCode
-  , _bicCountryCode :: CountryCode
-  , _bicLocationCode :: BICLocationCode
-  , _bicBranchCode :: Maybe BICBranchCode
-  } deriving (Eq)
-
-instance Show BIC where
-  show (BIC bc cc lc brc) = show bc <> show cc <> show lc <> maybe mempty show brc
-
--- TODO FIX
-bic :: Parser BIC
-bic = do
-    bankCode     <- BICBankCode . T.pack <$> count 4 swiftAlpha <?> "BIC BankCode"
-    countryCode'  <- countryCode
-    locationCode <- BICLocationCode . T.pack<$> count 2 digitOrAlpha <?> "BIC LocationCode"
-    branchCode   <- option Nothing $ Just <$> (bicBranchCode <?> "BIC BranchCode")
-    return $ BIC bankCode countryCode' locationCode branchCode
-
 
 -- | `:20:`
 data TransactionReferenceNumber = TransactionReferenceNumber

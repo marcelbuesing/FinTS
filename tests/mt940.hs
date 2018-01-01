@@ -6,15 +6,24 @@ import           Data.ISO3166_CountryCodes (CountryCode(..))
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
+import FinTS.Data.ISO9362BIC
 import FinTS.Data.IBAN
 import FinTS.Data.MT940
 
 main :: IO ()
 main = defaultMain $ testGroup "NMEA"
-  [ testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
+  [ testCase "BIC" bicTest
+  , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
   ]
+
+bicTest :: Assertion
+bicTest =
+  parseOnly bic raw' @?= Right bic'
+  where
+    raw' = "BELADEBEXXX"
+    bic' = BIC (BankCode "BELA") DE (LocationCode "BE") MainOffice
 
 transactionReferenceNumberTest :: Assertion
 transactionReferenceNumberTest =

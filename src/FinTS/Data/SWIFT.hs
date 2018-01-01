@@ -33,5 +33,11 @@ isSwiftAlpha c = (c >= 'A' && c <= 'Z')
 swiftAlpha :: Parser Char
 swiftAlpha = satisfy isSwiftAlpha <?> "SwiftAlpha"
 
+isSwiftAlphaNumeric :: Char -> Bool
+isSwiftAlphaNumeric c = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+
+swiftAlphaNumeric :: Parser Char
+swiftAlphaNumeric = satisfy isSwiftAlphaNumeric <?> "SwiftAlphaNumeric"
+
 countryCode :: Parser CountryCode
 countryCode = read <$> count 2 swiftAlpha <?> "CountryCode"

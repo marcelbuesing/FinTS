@@ -6,6 +6,7 @@ module FinTS.Data (
 ) where
 
 import FinTS.Data.IBAN
+import FinTS.Data.ISO9362BIC
 import FinTS.Data.MT940
 import FinTS.Data.SWIFT
 import FinTS.Data.Types
