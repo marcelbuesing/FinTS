@@ -7,7 +7,7 @@ import           Test.Tasty
 import           Test.Tasty.HUnit
 
 import FinTS.Data.ISO9362BIC
-import FinTS.Data.IBAN
+import FinTS.Data.ISO13616IBAN
 import FinTS.Data.MT940
 
 main :: IO ()

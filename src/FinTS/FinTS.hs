@@ -5,7 +5,7 @@ module FinTS.Data (
   , module SWIFT
 ) where
 
-import FinTS.Data.IBAN
+import FinTS.Data.ISO13616IBAN
 import FinTS.Data.ISO9362BIC
 import FinTS.Data.MT940
 import FinTS.Data.SWIFT

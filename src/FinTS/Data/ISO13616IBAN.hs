@@ -1,4 +1,4 @@
-module FinTS.Data.IBAN (IBAN(..), IBANGrouping(..), ISO7064CheckDigit(..), iban) where
+module FinTS.Data.ISO13616IBAN (IBAN(..), IBANGrouping(..), ISO7064CheckDigit(..), iban) where
 
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ISO3166_CountryCodes (CountryCode)

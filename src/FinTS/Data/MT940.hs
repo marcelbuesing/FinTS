@@ -24,7 +24,7 @@ import           Data.Tuple.Curry (uncurryN)
 
 import           FinTS.Data.SWIFT
 import           FinTS.Data.ISO9362BIC
-import           FinTS.Data.IBAN
+import           FinTS.Data.ISO13616IBAN
 
 type MT940Date = Day
 
