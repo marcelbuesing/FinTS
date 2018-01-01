@@ -2,14 +2,14 @@
 
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString.Char8 (pack)
-import           Data.ISO3166_CountryCodes (CountryCode(..))
+import qualified Data.ISO3166_CountryCodes as CC
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-import FinTS.Data.ISO9362BIC
-import FinTS.Data.ISO7064CheckDigits
-import FinTS.Data.ISO13616IBAN
-import FinTS.Data.MT940
+import qualified FinTS.Data.ISO9362BIC as BIC
+import           FinTS.Data.ISO7064CheckDigits
+import qualified FinTS.Data.ISO13616IBAN as IBAN
+import           FinTS.Data.MT940
 
 main :: IO ()
 main = defaultMain $ testGroup "NMEA"
@@ -23,24 +23,24 @@ main = defaultMain $ testGroup "NMEA"
 
 bicMainOfficeTest :: Assertion
 bicMainOfficeTest =
-  parseOnly bic raw' @?= Right bic'
+  parseOnly BIC.bic raw' @?= Right bic'
   where
     raw' = "BELADEBEXXX"
-    bic' = BIC (BankCode "BELA") DE (LocationCode "BE") MainOffice
+    bic' = BIC.BIC (BIC.BankCode "BELA") CC.DE (BIC.LocationCode "BE") BIC.MainOffice
 
 bicEightCharTest :: Assertion
 bicEightCharTest =
-  parseOnly bic raw' @?= Right bic'
+  parseOnly BIC.bic raw' @?= Right bic'
   where
     raw' = "MARKDEFF"
-    bic' = BIC (BankCode "MARK") DE (LocationCode "FF") MainOffice
+    bic' = BIC.BIC (BIC.BankCode "MARK") CC.DE (BIC.LocationCode "FF") BIC.MainOffice
 
 bicBranchTest :: Assertion
 bicBranchTest =
-  parseOnly bic raw' @?= Right bic'
+  parseOnly BIC.bic raw' @?= Right bic'
   where
     raw' = "UBSWCHZH80A"
-    bic' = BIC (BankCode "UBSW") CH (LocationCode "ZH") (Branch "80A")
+    bic' = BIC.BIC (BIC.BankCode "UBSW") CC.CH (BIC.LocationCode "ZH") (BIC.Branch "80A")
 
 transactionReferenceNumberTest :: Assertion
 transactionReferenceNumberTest =
@@ -52,7 +52,7 @@ accountIdentificationTest :: Assertion
 accountIdentificationTest =
   parseOnly accountIdentification ":25:NL08DEUT0319809633EUR" @?= Right id'
     where cd' = CheckDigits "08"
-          iban' = IBAN NL cd' [IBANCharGrouping "DEUT", IBANDigitGrouping "0319809633"]
+          iban' = IBAN.IBAN CC.NL cd' (IBAN.NL (BIC.BankCode "DEUT") (IBAN.AccountNumber "0319809633"))
           id' = AccountIdentification iban'
 
 statementNumberSeqNumberTest :: Assertion
