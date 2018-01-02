@@ -9,8 +9,9 @@
 
 module FinTS.Data.MT940 where
 
-import           Control.Applicative ((<|>), optional)
-import           Data.Attoparsec.ByteString.Char8
+import           Control.Applicative (Alternative(..), (<|>), optional)
+import           Control.Monad (MonadPlus(..))
+import           Data.Attoparsec.ByteString.Char8 as Atto
 import           Data.ByteString as BS hiding (count)
 import qualified Data.ByteString.Char8 as B
 import           Data.Currency as Currency
@@ -218,16 +219,16 @@ data StatementLine = StatementLine
 statementLine :: Parser StatementLine
 statementLine = do
   _         <- string ":61:"
-  valueD <- mt940Date
-  entryD <- option Nothing (Just <$> mt940Date)
-  cd     <- creditDebit
-  fc     <- option Nothing (Just <$> fundsCode)
-  amount <- amount
-  ttic   <- transactionTypeIdentCode
-  cr     <- customerReference
-  br     <- option Nothing (Just <$> bankReference)
-  sd     <- T.pack <$> count 34 swiftCharacter
-  return $ StatementLine valueD entryD cd fc amount ttic cr br sd
+  valueD  <- mt940Date
+  entryD  <- option Nothing (Just <$> mt940Date)
+  cd      <- creditDebit
+  fc      <- option Nothing (Just <$> fundsCode)
+  amount' <- amount
+  ttic    <- transactionTypeIdentCode
+  cr      <- customerReference
+  br      <- option Nothing (Just <$> bankReference)
+  sd      <- T.pack <$> count 34 swiftCharacter
+  return $ StatementLine valueD entryD cd fc amount' ttic cr br sd
 
 balance :: B.ByteString -> Parser (CreditDebitMark, MT940Date, Currency.Alpha, Amount)
 balance tag = do
@@ -294,7 +295,19 @@ forwardAvailableBalance :: Parser ForwardAvailableBalance
 forwardAvailableBalance = (uncurryN ForwardAvailableBalance) <$> (balance ":65:")
 
 -- | `:86:`
-data InformationToAccountOwner = InformationToAccountOwner {} deriving (Show)
+newtype InformationToAccountOwner = InformationToAccountOwner T.Text deriving Show
+
+maxCount :: Int -> Parser a -> Parser [a]
+maxCount c p = try (count c p) <|> many' p
+
+maxCount1 :: Int -> Parser a -> Parser [a]
+maxCount1 c p = try (count c p) <|> many1 p
+
+informationToAccountOwner :: Parser InformationToAccountOwner
+informationToAccountOwner = do
+  _ <- string ":86:" <?> ":86: InformationToAccountOwner Prefix"
+  n <- T.pack <$> maxCount 65 swiftCharacter
+  pure $ InformationToAccountOwner n
 
 -- | MT940 record
 data MT940Record = MT940Record
