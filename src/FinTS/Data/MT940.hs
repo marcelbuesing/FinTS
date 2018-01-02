@@ -10,17 +10,14 @@
 module FinTS.Data.MT940 where
 
 import           Control.Applicative (Alternative(..), (<|>), optional)
-import           Control.Monad (MonadPlus(..))
 import           Data.Attoparsec.ByteString.Char8 as Atto
 import           Data.ByteString as BS hiding (count)
 import qualified Data.ByteString.Char8 as B
 import           Data.Currency as Currency
-import           Data.ISO3166_CountryCodes (CountryCode)
 import           Data.Maybe (fromMaybe)
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day, fromGregorian)
-import           Data.Time.Format (parseTimeM)
 import           Data.Tuple.Curry (uncurryN)
 
 import           FinTS.Data.SWIFT
@@ -45,6 +42,13 @@ currency = read <$> count 3 swiftAlpha
 digitOrAlpha :: Parser Char
 digitOrAlpha = satisfy (\x -> isDigit x || isUpperCase x)
     where isUpperCase c = (c >= 'A' && c <= 'Z')
+
+
+maxCount :: Int -> Parser a -> Parser [a]
+maxCount c p = try (count c p) <|> many' p
+
+maxCount1 :: Int -> Parser a -> Parser [a]
+maxCount1 c p = try (count c p) <|> many1 p
 
 data CreditDebitMark = Credit | Debit deriving (Show)
 
@@ -106,13 +110,19 @@ data TransactionReferenceNumber = TransactionReferenceNumber
 transactionReferenceNumber :: Parser TransactionReferenceNumber
 transactionReferenceNumber = do
     _ <- string ":20:" <?> ":20: TransactionReferenceNumber Prefix"
-    n <- T.pack <$> count 16 swiftCharacter <?> ":20: TransactionReferenceNumber"
+    n <- T.pack <$> maxCount 16 swiftCharacter <?> ":20: TransactionReferenceNumber"
     return $ TransactionReferenceNumber n
 
 -- | `:21:`
 data RelatedReference = RelatedReference
     { _relatedReference :: T.Text
     } deriving (Show)
+
+relatedReference :: Parser RelatedReference
+relatedReference = do
+  _ <- ":21:" <?> ":21: RelatedReference prefix"
+  n <- T.pack <$> maxCount 35 swiftCharacter
+  pure $ RelatedReference n
 
 -- | `:25:`
 newtype AccountIdentification = AccountIdentification IBAN deriving (Show, Eq)
@@ -150,7 +160,7 @@ statementNumberSeqNumber = do
     sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber) <$> maxFiveDigitDecimal <?> ":28C: SequenceNumber")
     return $ StatementNumberSeqNumber stn sqn
      -- TODO figure out a better to avoid backtracking for digits < 5
-    where maxFiveDigitDecimal = read <$> count 5 digit <|> decimal
+    where maxFiveDigitDecimal = read <$> maxCount 5 digit
 
 -- | `:60a:`
 data OpeningBalance = OpeningBalance
@@ -296,12 +306,6 @@ forwardAvailableBalance = (uncurryN ForwardAvailableBalance) <$> (balance ":65:"
 
 -- | `:86:`
 newtype InformationToAccountOwner = InformationToAccountOwner T.Text deriving Show
-
-maxCount :: Int -> Parser a -> Parser [a]
-maxCount c p = try (count c p) <|> many' p
-
-maxCount1 :: Int -> Parser a -> Parser [a]
-maxCount1 c p = try (count c p) <|> many1 p
 
 informationToAccountOwner :: Parser InformationToAccountOwner
 informationToAccountOwner = do
