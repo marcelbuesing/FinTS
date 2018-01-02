@@ -32,11 +32,11 @@ newtype RIB = RIB NationalCheckDigits deriving (Show, Eq)
 -- | The country specific part of the IBAN
 data BBAN =
   -- | Germany
-    DE BLZ AccountNumber
+    BBAN_DE BLZ AccountNumber
   -- | France
-  | FR NationalBankCode BranchCode AccountNumber RIB
+  | BBAN_FR NationalBankCode BranchCode AccountNumber RIB
   -- | Netherlands
-  | NL BIC.BankCode AccountNumber
+  | BBAN_NL BIC.BankCode AccountNumber
   deriving (Show, Eq) -- TODO fix show
 
 instance Show IBAN where
@@ -46,12 +46,14 @@ iban :: Parser IBAN
 iban = do
   cc' <- countryCode
   cd' <- CheckDigits . T.pack <$> count 2 digit
-  ic' <- ibanCountry cc'
+  ic' <- bban cc'
   return $ IBAN cc' cd' ic'
 
-ibanCountry :: CC.CountryCode -> Parser BBAN
-ibanCountry CC.NL = nl
-ibanCountry _ = error "Country not implemented"
+bban :: CC.CountryCode -> Parser BBAN
+bban CC.DE = de
+bban CC.FR = fr
+bban CC.NL = nl
+bban cc = error $ "Country missing BBAN implementation. CountryCode: " <> show cc
 
 -- a - Upper case Alpha
 alphaUpperCase :: Parser Char
@@ -71,7 +73,7 @@ de :: Parser BBAN
 de = do
   blz' <- BLZ . NationalBankCode . T.pack <$> count 8 digit
   acc' <- AccountNumber . T.pack <$> count 10 digit
-  return $ DE blz' acc'
+  return $ BBAN_DE blz' acc'
 
 fr :: Parser BBAN
 fr = do
@@ -79,10 +81,10 @@ fr = do
   brc' <- BranchCode . T.pack <$> count 5 digit
   acc' <- AccountNumber . T.pack <$> count 11 alphaNumericMixed
   rib' <- RIB . NationalCheckDigits . T.pack <$> count 2 digit
-  return $ FR nbc' brc' acc' rib'
+  return $ BBAN_FR nbc' brc' acc' rib'
 
 nl :: Parser BBAN
 nl = do
   bc' <- BIC.bankCode
   ac' <- AccountNumber . T.pack <$> count 10 digit
-  return $ NL bc' ac'
+  return $ BBAN_NL bc' ac'

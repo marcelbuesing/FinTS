@@ -16,6 +16,7 @@ main = defaultMain $ testGroup "NMEA"
   [ testCase "BIC main office" bicMainOfficeTest
   , testCase "BIC 8 char" bicEightCharTest
   , testCase "BIC with branch" bicBranchTest
+  , testCase "IBAN Germany" ibanGermanyTest
   , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
@@ -42,6 +43,15 @@ bicBranchTest =
     raw' = "UBSWCHZH80A"
     bic' = BIC.BIC (BIC.BankCode "UBSW") CC.CH (BIC.LocationCode "ZH") (BIC.Branch "80A")
 
+ibanGermanyTest :: Assertion
+ibanGermanyTest =
+  parseOnly IBAN.iban raw' @?= Right iban'
+  where
+    raw'  = "DE89370400440532013000"
+    blz'  = IBAN.BLZ $ IBAN.NationalBankCode "37040044"
+    acc'  = IBAN.AccountNumber "0532013000"
+    iban' = IBAN.IBAN CC.DE (CheckDigits "89") (IBAN.BBAN_DE blz' acc')
+
 transactionReferenceNumberTest :: Assertion
 transactionReferenceNumberTest =
   parseOnly transactionReferenceNumber raw @?= Right expected
@@ -52,7 +62,7 @@ accountIdentificationTest :: Assertion
 accountIdentificationTest =
   parseOnly accountIdentification ":25:NL08DEUT0319809633EUR" @?= Right id'
     where cd' = CheckDigits "08"
-          iban' = IBAN.IBAN CC.NL cd' (IBAN.NL (BIC.BankCode "DEUT") (IBAN.AccountNumber "0319809633"))
+          iban' = IBAN.IBAN CC.NL cd' (IBAN.BBAN_NL (BIC.BankCode "DEUT") (IBAN.AccountNumber "0319809633"))
           id' = AccountIdentification iban'
 
 statementNumberSeqNumberTest :: Assertion
