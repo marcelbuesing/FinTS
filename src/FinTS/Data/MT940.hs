@@ -263,7 +263,7 @@ data ClosingBalance = ClosingBalance
     , _closingBalanceStatementDate :: MT940Date
     , _closingBalanceCurrency :: Currency.Alpha
     , _closingBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 closingBalance :: Parser ClosingBalance
 closingBalance = (uncurryN ClosingBalance) <$> (balance ":62a:")
@@ -274,7 +274,7 @@ data IntermediateClosingBalance = IntermediateClosingBalance
     , _intermediateClosingBalanceStatementDate :: MT940Date
     , _intermediateClosingBalanceCurrency :: Currency.Alpha
     , _intermediateClosingBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 intermediateClosingBalance :: Parser IntermediateClosingBalance
 intermediateClosingBalance = (uncurryN IntermediateClosingBalance) <$> (balance ":62M:")
@@ -285,7 +285,7 @@ data FinalClosingBalance = FinalClosingBalance
     , _finalClosingBalanceStatementDate :: MT940Date
     , _finalClosingBalanceCurrency :: Currency.Alpha
     , _finalClosingBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 finalClosingBalance :: Parser FinalClosingBalance
 finalClosingBalance = (uncurryN FinalClosingBalance) <$> (balance ":62F:")

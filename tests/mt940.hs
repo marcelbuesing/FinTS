@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Data.Attoparsec.ByteString.Char8
-import           Data.ByteString.Char8 (pack)
 import           Data.Currency as Currency
 import qualified Data.ISO3166_CountryCodes as CC
 import           Data.Time.Calendar (fromGregorian)
@@ -24,6 +23,8 @@ main = defaultMain $ testGroup "NMEA"
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
   , testCase ":60F:FirstOpeningBalance" firstOpeningBalanceTest
   , testCase ":60M:IntermediateOpeningBalance" intermediateOpeningBalanceTest
+  , testCase ":62F:ClosingBalance" finalClosingBalanceTest
+  , testCase ":62M:IntermediateClosingBalance" intermediateClosingBalanceTest
   , testCase ":61:StatementLine" statementLineTest
   , testCase ":86:InformationToAccountOwner" informationToAccountOwnerTest
   , testCase ":86:InformationToAccountOwnerMultiLine" informationToAccountOwnerMultiLineTest
@@ -96,6 +97,26 @@ intermediateOpeningBalanceTest =
     curr' = Currency.EUR
     amount' = Amount 960.0
     iOpeningBalance' = IntermediateOpeningBalance Credit date' curr' amount'
+
+finalClosingBalanceTest :: Assertion
+finalClosingBalanceTest =
+  parseOnly finalClosingBalance raw' @?= Right fClosingBalance'
+  where
+    raw' = ":62F:D120305EUR16259,13"
+    date' = fromGregorian 2012 03 05
+    curr' = Currency.EUR
+    amount' = Amount 16259.13
+    fClosingBalance' = FinalClosingBalance Debit date' curr' amount'
+
+intermediateClosingBalanceTest :: Assertion
+intermediateClosingBalanceTest =
+  parseOnly intermediateClosingBalance raw' @?= Right iClosingBalance'
+  where
+    raw' = ":62M:C120229EUR1064167,15"
+    date' = fromGregorian 2012 02 29
+    curr' = Currency.EUR
+    amount' = Amount 1064167.15
+    iClosingBalance' = IntermediateClosingBalance Credit date' curr' amount'
 
 
 statementLineTest :: Assertion
