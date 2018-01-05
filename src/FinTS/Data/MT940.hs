@@ -117,7 +117,7 @@ data TransactionReferenceNumber = TransactionReferenceNumber
 transactionReferenceNumber :: Parser TransactionReferenceNumber
 transactionReferenceNumber = do
     _ <- string ":20:" <?> ":20: TransactionReferenceNumber Prefix"
-    n <- T.pack <$> maxCount 16 swiftCharacter <?> ":20: TransactionReferenceNumber"
+    n <- T.pack <$> maxCount1 16 swiftCharacter <?> ":20: TransactionReferenceNumber"
     return $ TransactionReferenceNumber n
 
 -- | `:21:`
@@ -128,7 +128,7 @@ data RelatedReference = RelatedReference
 relatedReference :: Parser RelatedReference
 relatedReference = do
   _ <- ":21:" <?> ":21: RelatedReference prefix"
-  n <- T.pack <$> maxCount 35 swiftCharacter
+  n <- T.pack <$> maxCount1 35 swiftCharacter
   pure $ RelatedReference n
 
 -- | `:25:`
@@ -322,8 +322,8 @@ crlf = satisfy isCrlf
 informationToAccountOwner :: Parser InformationToAccountOwner
 informationToAccountOwner = do
   _ <- string ":86:" <?> ":86: InformationToAccountOwner Prefix"
-  hd' <- T.pack <$> maxCount 65 swiftCharacter
-  tl' <- maxCount 6 $ T.pack <$> (crlf *> maxCount 65 swiftCharacter)
+  hd' <- T.pack <$> maxCount1 65 swiftCharacter
+  tl' <- maxCount 5 $ T.pack <$> (crlf *> maxCount1 65 swiftCharacter)
   pure $ InformationToAccountOwner (hd' : tl')
 
 -- | MT940 record
