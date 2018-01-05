@@ -170,31 +170,26 @@ statementNumberSeqNumber = do
     where maxFiveDigitDecimal = read <$> maxCount 5 digit
 
 -- | `:60a:`
-data OpeningBalance = OpeningBalance
-    { _openingBalanceMark :: CreditDebitMark
-    , _openingBalanceStatementDate :: MT940Date
-    , _openingBalanceCurrency :: Currency.Alpha
-    , _openingBalanceAmount :: Amount
-    } deriving (Show)
-
-openingBalance :: Parser OpeningBalance
-openingBalance = do
-  _  <- string ":60a:"
-  cd <- creditDebit <?> ":60a: CreditDebit"
-  d  <- mt940Date <?> ":60a: Date"
-  cc <- currency <?> ":60a: Currency"
-  a  <- amount <?> ":60a: Amount"
-  return $ OpeningBalance cd d cc a
-
--- | `:60F:`
-data FirstOpeningBalance = FirstOpeningBalance
+data OpeningBalance =
+  -- | `:60F:`
+  FirstOpeningBalance
     { _firstOpeningBalanceMark :: CreditDebitMark
     , _firstOpeningBalanceStatementDate :: MT940Date
     , _firstOpeningBalanceCurrency :: Currency.Alpha
     , _firstOpeningBalanceAmount :: Amount
+    } |
+  -- | `:60M:`
+  IntermediateOpeningBalance
+    { _intermediateOpeningBalanceMark :: CreditDebitMark
+    , _intermediateOpeningBalanceStatementDate :: MT940Date
+    , _intermediateOpeningBalanceCurrency :: Currency.Alpha
+    , _intermediateOpeningBalanceAmount :: Amount
     } deriving (Show, Eq)
 
-firstOpeningBalance :: Parser FirstOpeningBalance
+openingBalance :: Parser OpeningBalance
+openingBalance = try intermediateOpeningBalance <|> firstOpeningBalance
+
+firstOpeningBalance :: Parser OpeningBalance
 firstOpeningBalance = do
   _  <- string ":60F:"
   cd <- creditDebit <?> ":60F: CreditDebit"
@@ -203,15 +198,7 @@ firstOpeningBalance = do
   a  <- amount <?> ":60F: Amount"
   return $ FirstOpeningBalance cd d cc a
 
--- | `:60M:`
-data IntermediateOpeningBalance = IntermediateOpeningBalance
-    { _intermediateOpeningBalanceMark :: CreditDebitMark
-    , _intermediateOpeningBalanceStatementDate :: MT940Date
-    , _intermediateOpeningBalanceCurrency :: Currency.Alpha
-    , _intermediateOpeningBalanceAmount :: Amount
-    } deriving (Show, Eq)
-
-intermediateOpeningBalance :: Parser IntermediateOpeningBalance
+intermediateOpeningBalance :: Parser OpeningBalance
 intermediateOpeningBalance = do
   _  <- string ":60M:"
   cd <- creditDebit <?> ":60M: CreditDebit"
@@ -258,36 +245,29 @@ balance tag = do
   pure (cd, d, cc, a)
 
 -- | `:62a:`
-data ClosingBalance = ClosingBalance
-    { _closingBalanceMark :: CreditDebitMark
-    , _closingBalanceStatementDate :: MT940Date
-    , _closingBalanceCurrency :: Currency.Alpha
-    , _closingBalanceAmount :: Amount
-    } deriving (Show, Eq)
-
-closingBalance :: Parser ClosingBalance
-closingBalance = (uncurryN ClosingBalance) <$> (balance ":62a:")
-
--- | `:62M:`
-data IntermediateClosingBalance = IntermediateClosingBalance
+data ClosingBalance =
+  -- | `:62M:`
+  IntermediateClosingBalance
     { _intermediateClosingBalanceMark :: CreditDebitMark
     , _intermediateClosingBalanceStatementDate :: MT940Date
     , _intermediateClosingBalanceCurrency :: Currency.Alpha
     , _intermediateClosingBalanceAmount :: Amount
-    } deriving (Show, Eq)
-
-intermediateClosingBalance :: Parser IntermediateClosingBalance
-intermediateClosingBalance = (uncurryN IntermediateClosingBalance) <$> (balance ":62M:")
-
--- | `:62F:`
-data FinalClosingBalance = FinalClosingBalance
+    } |
+  -- | `:62F:`
+    FinalClosingBalance
     { _finalClosingBalanceMark :: CreditDebitMark
     , _finalClosingBalanceStatementDate :: MT940Date
     , _finalClosingBalanceCurrency :: Currency.Alpha
     , _finalClosingBalanceAmount :: Amount
     } deriving (Show, Eq)
 
-finalClosingBalance :: Parser FinalClosingBalance
+closingBalance :: Parser ClosingBalance
+closingBalance = try intermediateClosingBalance <|> finalClosingBalance
+
+intermediateClosingBalance :: Parser ClosingBalance
+intermediateClosingBalance = (uncurryN IntermediateClosingBalance) <$> (balance ":62M:")
+
+finalClosingBalance :: Parser ClosingBalance
 finalClosingBalance = (uncurryN FinalClosingBalance) <$> (balance ":62F:")
 
 -- | `:64:`
@@ -333,14 +313,26 @@ data MT940Record = MT940Record
     , _mt940Record25AccountIdentification       :: AccountIdentification
     , _mt940Record28cStatementNumber            :: StatementNumberSeqNumber
 --    , _mt940Record60aOpeningBalance :: OpeningBalance
-    , _mt940Record60fFirstOpeningBalance        :: FirstOpeningBalance
-    , _mt940Record60mIntermediateBalance        :: IntermediateOpeningBalance
+    , _mt940Record60aOpeningBalance             :: OpeningBalance
     , _mt940Record61StatementLine               :: Maybe StatementLine
---, _mt940Record86InformationToAccountOwner :: Maybe InformationToAccountOwner
---    , _mt940Record62aClosingBalance :: ClosingBalance
-    , _mt940Record62fFinalClosingBalance        :: FinalClosingBalance
-    , _mt940Record62mIntermediateClosingBalance :: IntermediateClosingBalance
+    , _mt940Record62aClosingBalance             :: ClosingBalance
     , _mt940Record64ClosingAvailableBalance     :: Maybe ClosingAvailableBalance
     , _mt940Record65FordwardAvailableBalance    :: Maybe ForwardAvailableBalance
     , _mt940Record86InformationToAccountOwner   :: Maybe InformationToAccountOwner
 } deriving (Show)
+
+
+mt940Record :: Parser MT940Record
+mt940Record = do
+  a <- transactionReferenceNumber
+  b <- option Nothing (Just <$> relatedReference)
+  c <- accountIdentification
+  d <- statementNumberSeqNumber
+  e <- openingBalance
+  f <- option Nothing (Just <$> statementLine)
+  g <- closingBalance
+  h <- option Nothing (Just <$> closingAvailableBalance)
+  i <- option Nothing (Just <$> forwardAvailableBalance)
+  j <- option Nothing (Just <$> informationToAccountOwner)
+  pure $ MT940Record a b c d e f g h i j
+
