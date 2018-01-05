@@ -3,6 +3,7 @@
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString.Char8 (pack)
 import qualified Data.ISO3166_CountryCodes as CC
+import           Data.Time.Calendar (fromGregorian)
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
@@ -20,6 +21,7 @@ main = defaultMain $ testGroup "NMEA"
   , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
+  , testCase ":61:StatementLine" statementLineTest
   , testCase ":86:InformationToAccountOwner" informationToAccountOwnerTest
   , testCase ":86:InformationToAccountOwnerMultiLine" informationToAccountOwnerMultiLineTest
   ]
@@ -71,6 +73,18 @@ statementNumberSeqNumberTest :: Assertion
 statementNumberSeqNumberTest =
   parseOnly statementNumberSeqNumber ":28C:5/1" @?= Right seqNum'
   where seqNum' = StatementNumberSeqNumber (StatementNumber 5) (Just $ SeqNumber 1)
+
+statementLineTest :: Assertion
+statementLineTest =
+  parseOnly statementLine raw' @?= Right statementLine'
+  where
+    raw' = ":61:1202290229C16,31NTRFNONREF//25-752443-1"
+    valueDate' = fromGregorian 2012 02 29
+    entryDate' = Just $ fromGregorian 2012 02 29
+    amount' = Amount 16.31
+    custRef' = CustomerReference "TRFNONREF"
+    bankRef' = Just $ BankReference "25-752443-1"
+    statementLine' = StatementLine valueDate' entryDate' Credit Nothing amount' N custRef' bankRef' Nothing
 
 informationToAccountOwnerTest :: Assertion
 informationToAccountOwnerTest =

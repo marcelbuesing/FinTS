@@ -17,7 +17,7 @@ import           Data.Currency as Currency
 import           Data.Maybe (fromMaybe)
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
-import           Data.Time.Calendar (Day, fromGregorian)
+import           Data.Time.Calendar (Day, fromGregorian, toGregorian)
 import           Data.Tuple.Curry (uncurryN)
 
 import           FinTS.Data.SWIFT
@@ -36,6 +36,13 @@ mt940Date = do
                  then x + 1900
                  else x + 2000
 
+-- A date missing the year
+mt940DateNoYear :: Integer -> Parser MT940Date
+mt940DateNoYear year' = do
+  mm <- read <$> count 2 digit
+  dd <- read <$> count 2 digit
+  return $ fromGregorian year' mm dd
+
 currency :: Parser Currency.Alpha
 currency = read <$> count 3 swiftAlpha
 
@@ -50,36 +57,36 @@ maxCount c p = try (count c p) <|> many' p
 maxCount1 :: Int -> Parser a -> Parser [a]
 maxCount1 c p = try (count c p) <|> many1 p
 
-data CreditDebitMark = Credit | Debit deriving (Show)
+data CreditDebitMark = Credit | Debit deriving (Show, Eq)
 
 creditDebit :: Parser CreditDebitMark
-creditDebit = do
+creditDebit =
       (char 'C' >> return Credit)
   <|> (char 'D' >> return Debit)
 
-data TransactionTypeIdentCode = N | F deriving (Show)
+data TransactionTypeIdentCode = N | F deriving (Show, Eq)
 
 transactionTypeIdentCode :: Parser TransactionTypeIdentCode
-transactionTypeIdentCode = do
+transactionTypeIdentCode =
       (char 'N' >> return N)
   <|> (char 'F' >> return F)
 
-newtype BankReference = BankReference T.Text deriving (Show)
+newtype BankReference = BankReference T.Text deriving (Show, Eq)
 
 bankReference :: Parser BankReference
 bankReference = do
   _ <- string "//"
-  BankReference . T.pack <$> count 16 swiftCharacter
+  BankReference . T.pack <$> maxCount1 16 swiftCharacter
 
-newtype CustomerReference = CustomerReference T.Text deriving (Show)
+newtype CustomerReference = CustomerReference T.Text deriving (Show, Eq)
 
 customerReference :: Parser CustomerReference
-customerReference = CustomerReference . T.pack <$> count 16 swiftCharacter
+customerReference = CustomerReference . T.pack <$> maxCount1 16 (satisfy (\c -> c /= '\o57' && isSwiftCharacter c))
 
-newtype FundsCode = FundsCode Char deriving (Show)
+newtype FundsCode = FundsCode Char deriving (Show, Eq)
 
 fundsCode :: Parser FundsCode
-fundsCode = FundsCode <$> swiftCharacter
+fundsCode = FundsCode <$> swiftAlpha
 
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
 
@@ -223,21 +230,22 @@ data StatementLine = StatementLine
     , _statementLineTransactionTypeIdentificationCode :: TransactionTypeIdentCode
     , _statementLineCustomerReference :: CustomerReference
     , _statementLineBankReference :: Maybe BankReference
-    , _statementLineSupplementaryDetails :: T.Text
-    } deriving (Show)
+    , _statementLineSupplementaryDetails :: Maybe T.Text
+    } deriving (Show, Eq)
 
 statementLine :: Parser StatementLine
 statementLine = do
   _         <- string ":61:"
-  valueD  <- mt940Date
-  entryD  <- option Nothing (Just <$> mt940Date)
-  cd      <- creditDebit
-  fc      <- option Nothing (Just <$> fundsCode)
-  amount' <- amount
-  ttic    <- transactionTypeIdentCode
-  cr      <- customerReference
-  br      <- option Nothing (Just <$> bankReference)
-  sd      <- T.pack <$> count 34 swiftCharacter
+  valueD  <- mt940Date <?> ":61: ValueDate"
+  let (year',_ , _ ) = toGregorian valueD
+  entryD  <- option Nothing (Just <$> mt940DateNoYear year') <?> ":61: EntryDate"
+  cd      <- creditDebit <?> ":61: Mark"
+  fc      <- option Nothing (Just <$> fundsCode) <?> ":61: FundsCode"
+  amount' <- amount <?> ":61: Amount"
+  ttic    <- transactionTypeIdentCode <?> ":61: TransactionType"
+  cr      <- customerReference <?> ":61: Customer Ref"
+  br      <- option Nothing (Just <$> bankReference) <?> ":61: Bank Ref"
+  sd      <- option Nothing (Just . T.pack <$> maxCount1 34 swiftCharacter) <?> ":61: SupplementaryDetails"
   pure $ StatementLine valueD entryD cd fc amount' ttic cr br sd
 
 balance :: B.ByteString -> Parser (CreditDebitMark, MT940Date, Currency.Alpha, Amount)
