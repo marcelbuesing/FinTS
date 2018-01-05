@@ -2,6 +2,7 @@
 
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString.Char8 (pack)
+import           Data.Currency as Currency
 import qualified Data.ISO3166_CountryCodes as CC
 import           Data.Time.Calendar (fromGregorian)
 import           Test.Tasty
@@ -21,6 +22,8 @@ main = defaultMain $ testGroup "NMEA"
   , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
+  , testCase ":60F:FirstOpeningBalance" firstOpeningBalanceTest
+  , testCase ":60M:IntermediateOpeningBalance" intermediateOpeningBalanceTest
   , testCase ":61:StatementLine" statementLineTest
   , testCase ":86:InformationToAccountOwner" informationToAccountOwnerTest
   , testCase ":86:InformationToAccountOwnerMultiLine" informationToAccountOwnerMultiLineTest
@@ -73,6 +76,27 @@ statementNumberSeqNumberTest :: Assertion
 statementNumberSeqNumberTest =
   parseOnly statementNumberSeqNumber ":28C:5/1" @?= Right seqNum'
   where seqNum' = StatementNumberSeqNumber (StatementNumber 5) (Just $ SeqNumber 1)
+
+firstOpeningBalanceTest :: Assertion
+firstOpeningBalanceTest =
+  parseOnly firstOpeningBalance raw' @?= Right openingBalance'
+  where
+    raw' = ":60F:C120302EUR16234,13"
+    date' = fromGregorian 2012 03 02
+    curr' = Currency.EUR
+    amount' = Amount 16234.13
+    openingBalance' = FirstOpeningBalance Credit date' curr' amount'
+
+intermediateOpeningBalanceTest :: Assertion
+intermediateOpeningBalanceTest =
+  parseOnly intermediateOpeningBalance raw' @?= Right iOpeningBalance'
+  where
+    raw' = ":60M:C111111EUR960,"
+    date' = fromGregorian 2011 11 11
+    curr' = Currency.EUR
+    amount' = Amount 960.0
+    iOpeningBalance' = IntermediateOpeningBalance Credit date' curr' amount'
+
 
 statementLineTest :: Assertion
 statementLineTest =

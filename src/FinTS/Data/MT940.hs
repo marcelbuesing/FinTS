@@ -192,7 +192,7 @@ data FirstOpeningBalance = FirstOpeningBalance
     , _firstOpeningBalanceStatementDate :: MT940Date
     , _firstOpeningBalanceCurrency :: Currency.Alpha
     , _firstOpeningBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 firstOpeningBalance :: Parser FirstOpeningBalance
 firstOpeningBalance = do
@@ -209,7 +209,7 @@ data IntermediateOpeningBalance = IntermediateOpeningBalance
     , _intermediateOpeningBalanceStatementDate :: MT940Date
     , _intermediateOpeningBalanceCurrency :: Currency.Alpha
     , _intermediateOpeningBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 intermediateOpeningBalance :: Parser IntermediateOpeningBalance
 intermediateOpeningBalance = do
