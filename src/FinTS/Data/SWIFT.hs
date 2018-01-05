@@ -28,7 +28,7 @@ swiftCharacter :: Parser Char
 swiftCharacter = satisfy isSwiftCharacter <?> "SwiftCharacter"
 
 isSwiftAlpha :: Char -> Bool
-isSwiftAlpha c = (c >= 'A' && c <= 'Z')
+isSwiftAlpha c = c >= 'A' && c <= 'Z'
 
 swiftAlpha :: Parser Char
 swiftAlpha = satisfy isSwiftAlpha <?> "SwiftAlpha"

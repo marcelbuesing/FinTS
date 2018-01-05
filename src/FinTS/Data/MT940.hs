@@ -197,21 +197,21 @@ firstOpeningBalance = do
   return $ FirstOpeningBalance cd d cc a
 
 -- | `:60M:`
-data IntermediateBalance = IntermediateBalance
-    { _intermediateBalanceMark :: CreditDebitMark
-    , _intermediateBalanceStatementDate :: MT940Date
-    , _intermediateBalanceCurrency :: Currency.Alpha
-    , _intermediateBalanceAmount :: Amount
+data IntermediateOpeningBalance = IntermediateOpeningBalance
+    { _intermediateOpeningBalanceMark :: CreditDebitMark
+    , _intermediateOpeningBalanceStatementDate :: MT940Date
+    , _intermediateOpeningBalanceCurrency :: Currency.Alpha
+    , _intermediateOpeningBalanceAmount :: Amount
     } deriving (Show)
 
-intermediateOpeningBalance :: Parser IntermediateBalance
+intermediateOpeningBalance :: Parser IntermediateOpeningBalance
 intermediateOpeningBalance = do
   _  <- string ":60M:"
   cd <- creditDebit <?> ":60M: CreditDebit"
   d  <- mt940Date <?> ":60M: Date"
   cc <- currency <?> ":60M: Currency"
   a  <- amount <?> ":60M: Amount"
-  return $ IntermediateBalance cd d cc a
+  return $ IntermediateOpeningBalance cd d cc a
 
 -- | `:61:`
 data StatementLine = StatementLine
@@ -238,7 +238,7 @@ statementLine = do
   cr      <- customerReference
   br      <- option Nothing (Just <$> bankReference)
   sd      <- T.pack <$> count 34 swiftCharacter
-  return $ StatementLine valueD entryD cd fc amount' ttic cr br sd
+  pure $ StatementLine valueD entryD cd fc amount' ttic cr br sd
 
 balance :: B.ByteString -> Parser (CreditDebitMark, MT940Date, Currency.Alpha, Amount)
 balance tag = do
@@ -247,9 +247,9 @@ balance tag = do
   d  <- mt940Date   <?> B.unpack tag <> " Date"
   cc <- currency    <?> B.unpack tag <> " Currency"
   a  <- amount      <?> B.unpack tag <> " Amount"
-  return $ (cd, d, cc, a)
+  pure (cd, d, cc, a)
 
--- | `:62:`
+-- | `:62a:`
 data ClosingBalance = ClosingBalance
     { _closingBalanceMark :: CreditDebitMark
     , _closingBalanceStatementDate :: MT940Date
@@ -258,7 +258,7 @@ data ClosingBalance = ClosingBalance
     } deriving (Show)
 
 closingBalance :: Parser ClosingBalance
-closingBalance = (uncurryN ClosingBalance) <$> (balance ":62:")
+closingBalance = (uncurryN ClosingBalance) <$> (balance ":62a:")
 
 -- | `:62M:`
 data IntermediateClosingBalance = IntermediateClosingBalance
@@ -305,25 +305,34 @@ forwardAvailableBalance :: Parser ForwardAvailableBalance
 forwardAvailableBalance = (uncurryN ForwardAvailableBalance) <$> (balance ":65:")
 
 -- | `:86:`
-newtype InformationToAccountOwner = InformationToAccountOwner T.Text deriving Show
+newtype InformationToAccountOwner = InformationToAccountOwner [T.Text] deriving (Eq, Show)
+
+crlf :: Parser Char
+crlf = satisfy isCrlf
+  where isCrlf c = c ==  '\o12' || c == '\o15'
 
 informationToAccountOwner :: Parser InformationToAccountOwner
 informationToAccountOwner = do
   _ <- string ":86:" <?> ":86: InformationToAccountOwner Prefix"
-  n <- T.pack <$> maxCount 65 swiftCharacter
-  pure $ InformationToAccountOwner n
+  hd' <- T.pack <$> maxCount 65 swiftCharacter
+  tl' <- maxCount 6 $ T.pack <$> (crlf *> maxCount 65 swiftCharacter)
+  pure $ InformationToAccountOwner (hd' : tl')
 
 -- | MT940 record
 data MT940Record = MT940Record
-    { _mt940Record20TransactionReferenceNumber :: TransactionReferenceNumber
-    , _mt940Record21RelatedReference :: Maybe RelatedReference
-    , _mt940Record25AccountIdentification :: AccountIdentification
-    , _mt940Record28cStatementNumber :: StatementNumberSeqNumber
-    , _mt940Record60aOpeningBalance :: OpeningBalance
-    , _mt940Record61StatementLine :: Maybe StatementLine
+    { _mt940Record20TransactionReferenceNumber  :: TransactionReferenceNumber
+    , _mt940Record21RelatedReference            :: Maybe RelatedReference
+    , _mt940Record25AccountIdentification       :: AccountIdentification
+    , _mt940Record28cStatementNumber            :: StatementNumberSeqNumber
+--    , _mt940Record60aOpeningBalance :: OpeningBalance
+    , _mt940Record60fFirstOpeningBalance        :: FirstOpeningBalance
+    , _mt940Record60mIntermediateBalance        :: IntermediateOpeningBalance
+    , _mt940Record61StatementLine               :: Maybe StatementLine
 --, _mt940Record86InformationToAccountOwner :: Maybe InformationToAccountOwner
-    , _mt940Record62aClosingBalance :: ClosingBalance
-    , _mt940Record64ClosingAvailableBalance :: Maybe ClosingAvailableBalance
-    , _mt940Record65FordwardAvailableBalance :: Maybe ForwardAvailableBalance
-    , _mt940Record86InformationToAccountOwner :: Maybe InformationToAccountOwner
+--    , _mt940Record62aClosingBalance :: ClosingBalance
+    , _mt940Record62fFinalClosingBalance        :: FinalClosingBalance
+    , _mt940Record62mIntermediateClosingBalance :: IntermediateClosingBalance
+    , _mt940Record64ClosingAvailableBalance     :: Maybe ClosingAvailableBalance
+    , _mt940Record65FordwardAvailableBalance    :: Maybe ForwardAvailableBalance
+    , _mt940Record86InformationToAccountOwner   :: Maybe InformationToAccountOwner
 } deriving (Show)

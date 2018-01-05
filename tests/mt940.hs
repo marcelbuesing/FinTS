@@ -20,6 +20,8 @@ main = defaultMain $ testGroup "NMEA"
   , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
   , testCase ":25:AccountIdentification" accountIdentificationTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
+  , testCase ":86:InformationToAccountOwner" informationToAccountOwnerTest
+  , testCase ":86:InformationToAccountOwnerMultiLine" informationToAccountOwnerMultiLineTest
   ]
 
 bicMainOfficeTest :: Assertion
@@ -69,3 +71,17 @@ statementNumberSeqNumberTest :: Assertion
 statementNumberSeqNumberTest =
   parseOnly statementNumberSeqNumber ":28C:5/1" @?= Right seqNum'
   where seqNum' = StatementNumberSeqNumber (StatementNumber 5) (Just $ SeqNumber 1)
+
+informationToAccountOwnerTest :: Assertion
+informationToAccountOwnerTest =
+  parseOnly informationToAccountOwner raw @?= Right info'
+  where
+    raw = ":86:999PN5477SCHECK-NR. 0000016703074"
+    info' = InformationToAccountOwner ["999PN5477SCHECK-NR. 0000016703074"]
+
+informationToAccountOwnerMultiLineTest :: Assertion
+informationToAccountOwnerMultiLineTest =
+  parseOnly informationToAccountOwner raw @?= Right info'
+  where
+    raw = ":86:999PN5477SCHECK-NR. 0000016703074\n999PN0920WECHSEL"
+    info' = InformationToAccountOwner ["999PN5477SCHECK-NR. 0000016703074", "999PN0920WECHSEL"]
