@@ -14,7 +14,7 @@ import           Data.Attoparsec.ByteString.Char8 as Atto
 import           Data.ByteString as BS hiding (count)
 import qualified Data.ByteString.Char8 as B
 import           Data.Currency as Currency
-import           Data.Maybe (fromMaybe)
+import           Data.Maybe (catMaybes, fromMaybe)
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day, fromGregorian, toGregorian)
@@ -90,7 +90,7 @@ fundsCode = FundsCode <$> swiftAlpha
 
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
 
--- | double with comma
+-- |/home/marcel/.cabal/bin/hlint double with comma
 double' :: Parser Double
 double' = do
     d <- decimal
@@ -123,7 +123,7 @@ transactionReferenceNumber = do
 -- | `:21:`
 data RelatedReference = RelatedReference
     { _relatedReference :: T.Text
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 relatedReference :: Parser RelatedReference
 relatedReference = do
@@ -164,22 +164,22 @@ statementNumberSeqNumber :: Parser StatementNumberSeqNumber
 statementNumberSeqNumber = do
     _ <- string ":28C:" <?> ":28C: StatementNumberSeqNumber Prefix"
     stn <- StatementNumber <$> maxFiveDigitDecimal <?> ":28C: StatementNumber"
-    sqn <- option Nothing $ char '/' *>  ((Just . SeqNumber) <$> maxFiveDigitDecimal <?> ":28C: SequenceNumber")
+    sqn <- option Nothing $ char '/' *> ((Just . SeqNumber) <$> maxFiveDigitDecimal <?> ":28C: SequenceNumber")
     return $ StatementNumberSeqNumber stn sqn
      -- TODO figure out a better to avoid backtracking for digits < 5
-    where maxFiveDigitDecimal = read <$> maxCount 5 digit
+    where maxFiveDigitDecimal = read <$> maxCount1 5 digit
 
 -- | `:60a:`
 data OpeningBalance =
   -- | `:60F:`
-  FirstOpeningBalance
+    FirstOpeningBalance
     { _firstOpeningBalanceMark :: CreditDebitMark
     , _firstOpeningBalanceStatementDate :: MT940Date
     , _firstOpeningBalanceCurrency :: Currency.Alpha
     , _firstOpeningBalanceAmount :: Amount
     } |
   -- | `:60M:`
-  IntermediateOpeningBalance
+    IntermediateOpeningBalance
     { _intermediateOpeningBalanceMark :: CreditDebitMark
     , _intermediateOpeningBalanceStatementDate :: MT940Date
     , _intermediateOpeningBalanceCurrency :: Currency.Alpha
@@ -247,7 +247,7 @@ balance tag = do
 -- | `:62a:`
 data ClosingBalance =
   -- | `:62M:`
-  IntermediateClosingBalance
+    IntermediateClosingBalance
     { _intermediateClosingBalanceMark :: CreditDebitMark
     , _intermediateClosingBalanceStatementDate :: MT940Date
     , _intermediateClosingBalanceCurrency :: Currency.Alpha
@@ -276,7 +276,7 @@ data ClosingAvailableBalance = ClosingAvailableBalance
     , _closingAvailableBalanceStatementDate :: MT940Date
     , _closingAvailableBalanceCurrency :: Currency.Alpha
     , _closingAvailableBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 closingAvailableBalance :: Parser ClosingAvailableBalance
 closingAvailableBalance = (uncurryN ClosingAvailableBalance) <$> (balance ":64:")
@@ -287,7 +287,7 @@ data ForwardAvailableBalance = ForwardAvailableBalance
     , _forwardAvailableBalanceStatementDate :: MT940Date
     , _forwardAvailableBalanceCurrency :: Currency.Alpha
     , _forwardAvailableBalanceAmount :: Amount
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 forwardAvailableBalance :: Parser ForwardAvailableBalance
 forwardAvailableBalance = (uncurryN ForwardAvailableBalance) <$> (balance ":65:")
@@ -306,33 +306,42 @@ informationToAccountOwner = do
   tl' <- maxCount 5 $ T.pack <$> (crlf *> maxCount1 65 swiftCharacter)
   pure $ InformationToAccountOwner (hd' : tl')
 
+data Statement = Statement
+  { _statement61StatementLine :: StatementLine
+  , _statment86InformationToAccountOwner :: Maybe InformationToAccountOwner
+  } deriving (Show, Eq)
+
+statement :: Parser (Maybe Statement)
+statement = do
+  sl' <- option Nothing $ Just <$> (crlf *> statementLine)
+  ia' <- option Nothing $ Just <$> (crlf *> informationToAccountOwner)
+  pure $ Statement <$> sl' <*> (Just <$> ia')
+
 -- | MT940 record
 data MT940Record = MT940Record
-    { _mt940Record20TransactionReferenceNumber  :: TransactionReferenceNumber
-    , _mt940Record21RelatedReference            :: Maybe RelatedReference
-    , _mt940Record25AccountIdentification       :: AccountIdentification
-    , _mt940Record28cStatementNumber            :: StatementNumberSeqNumber
+    { _mt940Record20TransactionReferenceNumber :: TransactionReferenceNumber
+    , _mt940Record21RelatedReference           :: Maybe RelatedReference
+    , _mt940Record25AccountIdentification      :: AccountIdentification
+    , _mt940Record28cStatementNumber           :: StatementNumberSeqNumber
 --    , _mt940Record60aOpeningBalance :: OpeningBalance
-    , _mt940Record60aOpeningBalance             :: OpeningBalance
-    , _mt940Record61StatementLine               :: Maybe StatementLine
-    , _mt940Record62aClosingBalance             :: ClosingBalance
-    , _mt940Record64ClosingAvailableBalance     :: Maybe ClosingAvailableBalance
-    , _mt940Record65FordwardAvailableBalance    :: Maybe ForwardAvailableBalance
-    , _mt940Record86InformationToAccountOwner   :: Maybe InformationToAccountOwner
-} deriving (Show)
+    , _mt940Record60aOpeningBalance            :: OpeningBalance
+    , _mt940RecordStatement                    :: [Statement]
+    , _mt940Record62aClosingBalance            :: ClosingBalance
+    , _mt940Record64ClosingAvailableBalance    :: Maybe ClosingAvailableBalance
+    , _mt940Record65FordwardAvailableBalance   :: Maybe ForwardAvailableBalance
+} deriving (Show, Eq)
 
 
 mt940Record :: Parser MT940Record
 mt940Record = do
-  a <- transactionReferenceNumber
-  b <- option Nothing (Just <$> relatedReference)
-  c <- accountIdentification
-  d <- statementNumberSeqNumber
-  e <- openingBalance
-  f <- option Nothing (Just <$> statementLine)
-  g <- closingBalance
-  h <- option Nothing (Just <$> closingAvailableBalance)
-  i <- option Nothing (Just <$> forwardAvailableBalance)
-  j <- option Nothing (Just <$> informationToAccountOwner)
-  pure $ MT940Record a b c d e f g h i j
+  a <- transactionReferenceNumber <?> "MT940 TransactionReferenceNumber"
+  b <- option Nothing (Just <$> (crlf *>  relatedReference)) <?> "MT940 Related Reference"
+  c <- crlf *> accountIdentification <?> "MT940 AccountIdentification"
+  d <- crlf *> statementNumberSeqNumber  <?> "MT940 StatementNumber"
+  e <- crlf *> openingBalance <?> "MT940 Opening Balance"
+  f <- catMaybes <$> many statement  <?> "MT940 Statement"
+  g <- crlf *> closingBalance  <?> "MT940 Closing Balance"
+  h <- option Nothing (Just <$> (crlf *> closingAvailableBalance)) <?> "MT940 Closing Available Balance"
+  i <- option Nothing (Just <$> (crlf *> forwardAvailableBalance)) <?> "MT940 Forward Available Balance"
+  pure $ MT940Record a b c d e f g h i
 

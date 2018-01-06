@@ -28,6 +28,7 @@ main = defaultMain $ testGroup "NMEA"
   , testCase ":61:StatementLine" statementLineTest
   , testCase ":86:InformationToAccountOwner" informationToAccountOwnerTest
   , testCase ":86:InformationToAccountOwnerMultiLine" informationToAccountOwnerMultiLineTest
+  , testCase "MT940 Record" mt940Test
   ]
 
 bicMainOfficeTest :: Assertion
@@ -144,3 +145,33 @@ informationToAccountOwnerMultiLineTest =
   where
     raw = ":86:999PN5477SCHECK-NR. 0000016703074\n999PN0920WECHSEL"
     info' = InformationToAccountOwner ["999PN5477SCHECK-NR. 0000016703074", "999PN0920WECHSEL"]
+
+mt940Test :: Assertion
+mt940Test =
+  parseOnly mt940Record raw @?= Right mt940'
+  where
+    checkDig' = CheckDigits "08"
+    iban'     = IBAN.IBAN CC.NL checkDig' (IBAN.BBAN_NL (BIC.BankCode "DEUT") (IBAN.AccountNumber "0319809633"))
+    valueDate' = fromGregorian 1995 10 17
+    custRef' = CustomerReference "CHK16703074"
+    balanceDate' = fromGregorian 1995 10 17
+    statemLine' = StatementLine valueDate' Nothing Debit Nothing (Amount 6800.0) N custRef' Nothing Nothing
+    infoAccoun' = Just $ InformationToAccountOwner ["999PN5477SCHECK-NR. 0000016703074"]
+    a = TransactionReferenceNumber "951110"
+    b = AccountIdentification iban'
+    c = StatementNumberSeqNumber (StatementNumber 27) (Just $ SeqNumber 01)
+    d = FirstOpeningBalance Credit (fromGregorian 1995 10 16) Currency.EUR (Amount 84349.74)
+    e = [Statement statemLine' infoAccoun']
+    f = FinalClosingBalance Credit balanceDate' Currency.EUR (Amount 84437.04)
+    mt940' = MT940Record a Nothing b c d e f Nothing Nothing
+    raw =
+      ":20:951110\n\
+      \:25:NL08DEUT0319809633\n\
+      \:28C:27/01\n\
+      \:60F:C951016EUR84349,74\n\
+      \:61:951017D6800,NCHK16703074\n\
+      \:86:999PN5477SCHECK-NR. 0000016703074\n\
+      \:62F:C951017EUR84437,04"
+
+
+-- ":20:951110\n:25:NL08DEUT0319809633\n:28C:27/01\n:60F:C951016EUR84349,74\n:61:951017D6800,NCHK16703074\n:86:999PN5477SCHECK-NR. 0000016703074\n:62F:C951017EUR84437,04"
