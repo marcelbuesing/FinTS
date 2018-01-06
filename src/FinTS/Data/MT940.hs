@@ -90,13 +90,13 @@ fundsCode = FundsCode <$> swiftAlpha
 
 newtype Amount = Amount Double deriving (Show, Eq, Ord)
 
--- |/home/marcel/.cabal/bin/hlint double with comma
+-- | double with comma
 double' :: Parser Double
 double' = do
     d <- decimal
     f <- fmap (fromMaybe 0) $ optional $ do
         _ <- char ','
-        s <- takeWhile1 isDigit
+        s <- Atto.takeWhile isDigit
         let ln = B.length s
             v = fromIntegral $ getInt s
         return (v / (10 ^ ln))
@@ -311,11 +311,11 @@ data Statement = Statement
   , _statment86InformationToAccountOwner :: Maybe InformationToAccountOwner
   } deriving (Show, Eq)
 
-statement :: Parser (Maybe Statement)
+statement :: Parser Statement
 statement = do
-  sl' <- option Nothing $ Just <$> (crlf *> statementLine)
+  sl' <- statementLine
   ia' <- option Nothing $ Just <$> (crlf *> informationToAccountOwner)
-  pure $ Statement <$> sl' <*> (Just <$> ia')
+  pure $ Statement sl' ia'
 
 -- | MT940 record
 data MT940Record = MT940Record
@@ -339,7 +339,7 @@ mt940Record = do
   c <- crlf *> accountIdentification <?> "MT940 AccountIdentification"
   d <- crlf *> statementNumberSeqNumber  <?> "MT940 StatementNumber"
   e <- crlf *> openingBalance <?> "MT940 Opening Balance"
-  f <- catMaybes <$> many statement  <?> "MT940 Statement"
+  f <- many (try (crlf *> statement))  <?> "MT940 Statement"
   g <- crlf *> closingBalance  <?> "MT940 Closing Balance"
   h <- option Nothing (Just <$> (crlf *> closingAvailableBalance)) <?> "MT940 Closing Available Balance"
   i <- option Nothing (Just <$> (crlf *> forwardAvailableBalance)) <?> "MT940 Forward Available Balance"
