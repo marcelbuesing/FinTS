@@ -2,10 +2,10 @@
 
 -- http://www.hbci-zka.de/english/documents/specification_english/HBCI22eb.pdf
 -- http://www.hbci-zka.de/dokumente/spezifikation_deutsch/fintsv3/FinTS_3.0_Formals_2017-10-06_final_version.pdf
+-- https://www.hbci-zka.de/dokumente/spezifikation_deutsch/fintsv3/FinTS_3.0_Security_Sicherheitsverfahren_PINTAN_2017-10-06_final_version.pdf
 -- http://martin.hinner.info/bankconvert/swift_mt940_942.pdf
--- https://www.hbci-zka.de/dokumente/aenderungen/V3.0/GV_HKTAN-5.pdf
 
-module FinTS.Data.Types where
+module FinTS.Data.FinTS3 where
 
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString (ByteString)
@@ -275,7 +275,3 @@ data Segment =
     -- | Symbolic name of TAN Data medium e.g. `TAN-Generator`
     , _hitanTitleTANDataMedium :: T.Text
     }
-
-
-
-

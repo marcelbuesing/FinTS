@@ -21,6 +21,7 @@ library
                      , FinTS.Data.ISO9362_BIC
                      , FinTS.Data.MT940
                      , FinTS.Data.SWIFT
+                     , FinTS.Data.FinTS3
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11
