@@ -192,19 +192,19 @@ data Segment =
   -- | Header of message
   -- | B.5.2 Nachrichtenkopf
     HNHBK
-      { _messageHeaderSegmentHeader :: SegmentHeader
-      , _messageHeaderSize :: Int
-      , _messageHeaderHBCIVersion :: HBCIVersion
-      , _messageHeaderDialogeID :: DialogID
-      , _messageHeaderMessageNumber :: MessageNumber
-      , _messageHeaderReferenceMessage :: ReferenceMessage
+      { _hnhbkSegmentHeader :: SegmentHeader
+      , _hnhbkSize :: Int
+      , _hnhbkHBCIVersion :: HBCIVersion
+      , _hnhbkDialogeID :: DialogID
+      , _hnhbkMessageNumber :: MessageNumber
+      , _hnhbkReferenceMessage :: ReferenceMessage
       }
   -- | Footer of message
   -- | B.5.3 Nachrichtenabschluss
   -- | This segment ends all customer and bank messages
   | HNHBS
-     { _messageFooterSegmentHeader :: SegmentHeader
-     , _messageFooterMessageNumber :: MessageNumber
+     { _hnhbsSegmentHeader :: SegmentHeader
+     , _hnhbsMessageNumber :: MessageNumber
      }
   -- | Account movements during specified period
   -- | Example: HKKAZ:3:5+1234567::280:10020030+N+19960701+19960730'
@@ -250,7 +250,7 @@ data Segment =
     { _hktanSegmentHeader :: SegmentHeader
     , _hktanTANProcess :: TANProcess
     , _hktanSegmentID :: SegmentID
-    , _hktanInternationalBankAccount :: IntCustomerAccount
+    , _hktanCustomerAccount :: IntCustomerAccount
     , _hktanOrderHashValue :: OrderHashValue
     , _hktanOrderReference :: OrderReference
     , _hktanTANListNumber :: TANListNumber
