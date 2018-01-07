@@ -303,7 +303,8 @@ informationToAccountOwner :: Parser InformationToAccountOwner
 informationToAccountOwner = do
   _ <- string ":86:" <?> ":86: InformationToAccountOwner Prefix"
   hd' <- T.pack <$> maxCount1 65 swiftCharacter
-  tl' <- maxCount 5 $ T.pack <$> (crlf *> maxCount1 65 swiftCharacter)
+  let allowedChar = satisfy (\c -> c /= ':' && isSwiftCharacter c)
+  tl' <- maxCount 5 $ T.pack <$> (crlf *> maxCount1 65 allowedChar)
   pure $ InformationToAccountOwner (hd' : tl')
 
 data Statement = Statement
@@ -344,4 +345,3 @@ mt940Record = do
   h <- option Nothing (Just <$> (crlf *> closingAvailableBalance)) <?> "MT940 Closing Available Balance"
   i <- option Nothing (Just <$> (crlf *> forwardAvailableBalance)) <?> "MT940 Forward Available Balance"
   pure $ MT940Record a b c d e f g h i
-
