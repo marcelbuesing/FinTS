@@ -14,7 +14,7 @@ import           Data.Attoparsec.ByteString.Char8 as Atto
 import           Data.ByteString as BS hiding (count)
 import qualified Data.ByteString.Char8 as B
 import           Data.Currency as Currency
-import           Data.Maybe (catMaybes, fromMaybe)
+import           Data.Maybe (fromMaybe)
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day, fromGregorian, toGregorian)
