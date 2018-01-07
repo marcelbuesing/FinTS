@@ -132,13 +132,18 @@ relatedReference = do
   pure $ RelatedReference n
 
 -- | `:25:`
-newtype AccountIdentification = AccountIdentification IBAN deriving (Show, Eq)
+data AccountIdentification =
+    AccountIdentificationIBAN IBAN
+  | AccountIdentificationBankSpecific T.Text
+  deriving (Show, Eq)
 
 accountIdentification :: Parser AccountIdentification
 accountIdentification = do
     _ <- ":25:" <?> ":25: Account Identification Prefix"
-    id' <- iban <?> ":25: Account Identification"
-    return $ AccountIdentification id'
+    let iban' = AccountIdentificationIBAN <$> iban <?> ":25: Account Identification"
+        bank' = AccountIdentificationBankSpecific . T.pack<$> maxCount1 35 swiftCharacter
+    id' <- try iban' <|> bank'
+    return id'
 
 -- | `:25P:`
 data AccountIdentificationIdentifierCode = AccountIdentificationIdentifierCode
@@ -296,8 +301,7 @@ forwardAvailableBalance = (uncurryN ForwardAvailableBalance) <$> (balance ":65:"
 newtype InformationToAccountOwner = InformationToAccountOwner [T.Text] deriving (Eq, Show)
 
 crlf :: Parser Char
-crlf = satisfy isCrlf
-  where isCrlf c = c ==  '\o12' || c == '\o15'
+crlf = char '\r' *> char '\n' <?> "crlf new-line"
 
 informationToAccountOwner :: Parser InformationToAccountOwner
 informationToAccountOwner = do

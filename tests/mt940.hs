@@ -19,7 +19,8 @@ main = defaultMain $ testGroup "NMEA"
   , testCase "BIC with branch" bicBranchTest
   , testCase "IBAN Germany" ibanGermanyTest
   , testCase ":20:TransactionReferenceNumber" transactionReferenceNumberTest
-  , testCase ":25:AccountIdentification" accountIdentificationTest
+  , testCase ":25:AccountIdentification IBAN" accountIdentificationIBANTest
+  , testCase ":25:AccountIdentification BankSpecific" accountIdentificationBankSpecificTest
   , testCase ":28C:StatementNumberSeqNumber" statementNumberSeqNumberTest
   , testCase ":60F:FirstOpeningBalance" firstOpeningBalanceTest
   , testCase ":60M:IntermediateOpeningBalance" intermediateOpeningBalanceTest
@@ -67,12 +68,17 @@ transactionReferenceNumberTest =
   where raw = ":20:s000000000587017"
         expected = TransactionReferenceNumber "s000000000587017"
 
-accountIdentificationTest :: Assertion
-accountIdentificationTest =
+accountIdentificationIBANTest :: Assertion
+accountIdentificationIBANTest =
   parseOnly accountIdentification ":25:NL08DEUT0319809633EUR" @?= Right id'
     where cd' = CheckDigits "08"
           iban' = IBAN.IBAN CC.NL cd' (IBAN.BBAN_NL (BIC.BankCode "DEUT") (IBAN.AccountNumber "0319809633"))
-          id' = AccountIdentification iban'
+          id' = AccountIdentificationIBAN iban'
+
+accountIdentificationBankSpecificTest :: Assertion
+accountIdentificationBankSpecificTest =
+  parseOnly accountIdentification ":25:DABADKKK/1111.11.11111" @?= Right id'
+    where id' = AccountIdentificationBankSpecific "DABADKKK/1111.11.11111"
 
 statementNumberSeqNumberTest :: Assertion
 statementNumberSeqNumberTest =
@@ -143,7 +149,7 @@ informationToAccountOwnerMultiLineTest :: Assertion
 informationToAccountOwnerMultiLineTest =
   parseOnly informationToAccountOwner raw @?= Right info'
   where
-    raw = ":86:999PN5477SCHECK-NR. 0000016703074\n999PN0920WECHSEL"
+    raw = ":86:999PN5477SCHECK-NR. 0000016703074\r\n999PN0920WECHSEL"
     info' = InformationToAccountOwner ["999PN5477SCHECK-NR. 0000016703074", "999PN0920WECHSEL"]
 
 mt940Test :: Assertion
@@ -158,19 +164,19 @@ mt940Test =
     statemLine' = StatementLine valueDate' Nothing Debit Nothing (Amount 6800.0) N custRef' Nothing Nothing
     infoAccoun' = Just $ InformationToAccountOwner ["999PN5477SCHECK-NR. 0000016703074"]
     a = TransactionReferenceNumber "951110"
-    b = AccountIdentification iban'
+    b = AccountIdentificationIBAN iban'
     c = StatementNumberSeqNumber (StatementNumber 27) (Just $ SeqNumber 01)
     d = FirstOpeningBalance Credit (fromGregorian 1995 10 16) Currency.EUR (Amount 84349.74)
     e = [Statement statemLine' infoAccoun']
     f = FinalClosingBalance Credit balanceDate' Currency.EUR (Amount 84437.04)
     mt940' = MT940Record a Nothing b c d e f Nothing Nothing
     raw =
-      ":20:951110\n\
-      \:25:NL08DEUT0319809633\n\
-      \:28C:27/01\n\
-      \:60F:C951016EUR84349,74\n\
-      \:61:951017D6800,NCHK16703074\n\
-      \:86:999PN5477SCHECK-NR. 0000016703074\n\
+      ":20:951110\r\n\
+      \:25:NL08DEUT0319809633\r\n\
+      \:28C:27/01\r\n\
+      \:60F:C951016EUR84349,74\r\n\
+      \:61:951017D6800,NCHK16703074\r\n\
+      \:86:999PN5477SCHECK-NR. 0000016703074\r\n\
       \:62F:C951017EUR84437,04"
 
 
