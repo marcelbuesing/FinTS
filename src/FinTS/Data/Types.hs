@@ -8,6 +8,7 @@
 module FinTS.Data.Types where
 
 import           Data.Attoparsec.ByteString.Char8
+import           Data.ByteString (ByteString)
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day)
 import           Data.Time.LocalTime (LocalTime)
@@ -150,8 +151,11 @@ newtype TANProcess = TANProcess Int deriving (Show, Eq)
 
 newtype SegmentID = SegmentID T.Text deriving (Show, Eq)
 
+-- | HKTAN - Data Dictionary - Auftrags-Hashwert
 newtype OrderHashValue = OrderHashValue T.Text deriving (Show, Eq)
 
+-- | Contains reference to order.
+-- | HKTAN - Data Dictionary - Auftragsreferenz
 newtype OrderReference = OrderReference T.Text deriving (Show, Eq)
 
 newtype TANListNumber = TANListNumber T.Text deriving (Show, Eq)
@@ -167,6 +171,21 @@ newtype DialogID = DialogID FinID deriving (Show, Eq)
 newtype MessageNumber = MessageNumber Int deriving (Show, Eq)
 
 newtype ReferenceMessage = ReferenceMessage T.Text deriving (Show, Eq)
+
+-- | Optional in answer for the sent TAN confirmation number.
+-- | Customer has to compare this to the BEN printed on the TAN list
+-- | HKTAN - Data Dictionary - BEN
+newtype BEN = BEN T.Text deriving (Show, Eq)
+
+-- | Challenge for PIN/TAN process order.
+-- | Based on the challenge the customer determines the actual TAN.
+-- | The challenge has to be transferred, independent of TAN process version 1 or 2.
+-- | HKTAN - Data Dictionary - Challenge, Elementversion
+newtype Challenge = Challenge T.Text deriving (Show, Eq)
+
+-- | For use in a Two-Step-Verification process with unidirectional coupling.
+-- | In addition to the `Challenge` the data has to be provided e.g. via an optical interface.
+newtype ChallengeHHD_UC = ChallengeHHD_UC ByteString
 
 -- | Segment with Bank or Customer origin
 data Segment =
@@ -240,7 +259,21 @@ data Segment =
     , _hktanSMSWithdrawalAccount :: IntCustomerAccount
     , _hktanChallengeClass :: ChallengeClass
     , _hktanParameterChallengeClass :: ParameterChallengeClass
+    -- | Symbolic name of TAN Data medium e.g. `TAN-Generator`
     , _hktanTitleTANDataMedium :: T.Text
+    }
+  | HITAN
+    { _hitanSegmentHeader :: SegmentHeader
+    , _hitanTANProcess :: TANProcess
+    , _hitanOrderHashValue :: OrderHashValue
+    , _hitanOrderReference :: OrderReference
+    , _hitanChallenge :: Challenge
+    , _hitanChallengeHHD_UC :: ChallengeHHD_UC
+    , _hitanDateTimeOfExpiry :: FinTime
+    , _hitanTANListNumber :: TANListNumber
+    , _hitanBEN :: BEN
+    -- | Symbolic name of TAN Data medium e.g. `TAN-Generator`
+    , _hitanTitleTANDataMedium :: T.Text
     }
 
 
