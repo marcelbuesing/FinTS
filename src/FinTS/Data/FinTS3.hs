@@ -11,8 +11,8 @@ import           Control.Lens
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString as BS
 import qualified Data.ByteString.Base64 as Base64
-import           Data.ByteString.Char8 as BSC8
-import           Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Char8 as BSC8
+import qualified Data.ByteString.Lazy as BSL
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day)
@@ -124,10 +124,13 @@ data SegmentHeader = SegmentHeader
 
 instance Show SegmentHeader where
   show (SegmentHeader id' num ver ref) =
-    show id' <> show num <> show ver <> show ref
+    show id' <> ":" <> show num <> ":" <> show ver
 
 -- | Alphanumeric Length: ..35
-newtype ScrollReference = ScrollReference T.Text deriving (Show, Eq)
+newtype ScrollReference = ScrollReference T.Text deriving Eq
+
+instance Show ScrollReference where
+  show (ScrollReference t) = T.unpack t
 
 data AllAccounts =
   -- | All account movements of the customer
@@ -144,7 +147,10 @@ instance Show AllAccounts where
 -- | aka `kti`
 -- | Bank account of international client e.g. IBAN
 -- | Kontoverbindung international Auftraggeber
-newtype IntCustomerAccount = IntCustomerAccount T.Text deriving (Show, Eq)
+newtype IntCustomerAccount = IntCustomerAccount T.Text deriving Eq
+
+instance Show IntCustomerAccount where
+  show (IntCustomerAccount t) = T.unpack t
 
 -- | aka `ktv`
 newtype CustomerAccount = CustomerAccount T.Text deriving (Show, Eq)
@@ -175,8 +181,8 @@ data CustomerSystemStatus =
 data YesNo = Yes | No
 
 instance Show YesNo where
-  show Yes = "y"
-  show No  = "n"
+  show Yes = "J"
+  show No  = "N"
 
 -- | 1..4
 newtype TANProcess = TANProcess Int deriving (Show, Eq)
@@ -317,15 +323,17 @@ data Segment =
   }
 
 instance Show Segment where
-  show (HKSAL h ca aa mn sr) = show h <> show ca <> show aa <> show mn <> show sr
+  show (HKSAL h ca aa mn sr) = show h <> "+" <>  show ca <> "+" <> show aa <> "'"
   show _ = mempty
 
-askHksal :: String -> Segment -> IO (Wreq.Response BSL.ByteString)
+askHksal :: String -> Segment -> IO (Either String BS.ByteString)
 askHksal url a = do
   let opts = Wreq.defaults & Wreq.manager .~ Left (opensslManagerSettings context)
       content = Base64.encode $ BSC8.pack $ show a
-  withOpenSSL $
+  r <- withOpenSSL $
     Wreq.postWith opts url content
+  print r
+  return $ Base64.decode $ BSL.toStrict (r ^. Wreq.responseBody)
 
 sampleHeader :: SegmentHeader
-sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 4) (ReferenceSegment 1)
+sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 3) (ReferenceSegment 1)
