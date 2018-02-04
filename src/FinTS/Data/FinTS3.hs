@@ -7,12 +7,20 @@
 
 module FinTS.Data.FinTS3 where
 
+import           Control.Lens
 import           Data.Attoparsec.ByteString.Char8
-import           Data.ByteString (ByteString)
+import           Data.ByteString as BS
+import qualified Data.ByteString.Base64 as Base64
+import           Data.ByteString.Char8 as BSC8
+import           Data.ByteString.Lazy as BSL
+import           Data.Monoid ((<>))
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day)
 import           Data.Time.LocalTime (LocalTime)
 import           FinTS.Data.MT940
+import           Network.HTTP.Client.OpenSSL
+import qualified Network.Wreq as Wreq
+import           OpenSSL.Session (context)
 
 -- B.4.2 Abgeleitete Formate
 
@@ -23,7 +31,13 @@ class ToFin a where
 data SegmentIdentifier =
     ID_HIKAZ
   | ID_HKKAZ
-  deriving (Show, Eq)
+  | ID_HKSAL
+  deriving Eq
+
+instance Show SegmentIdentifier where
+  show ID_HIKAZ = "HIKAZ"
+  show ID_HKKAZ = "HKKAZ"
+  show ID_HKSAL = "HKSAL"
 
 instance ToFin SegmentIdentifier where
   toFin ID_HIKAZ = "HIKAZ"
@@ -32,13 +46,23 @@ instance ToFin SegmentIdentifier where
 -- | Information for uniquely identification of segments within a message.
 -- | Segments are numbered ascendingly. Numeration starts with `1`.
 -- | version: 1 length: ..3
-newtype SegmentNumber = SegmentNumber Int deriving (Show, Eq, Read)
+newtype SegmentNumber = SegmentNumber Int deriving (Eq, Read)
 
+instance Show SegmentNumber where
+  show (SegmentNumber n) = show n
+
+-- TODO list of predefined segmentversions
 -- | Version number for documentation of the segment format.
 -- | version: 1 length: ..3
-newtype SegmentVersion = SegmentVersion Int deriving (Show, Eq, Read)
+newtype SegmentVersion = SegmentVersion Int deriving (Eq, Read)
+instance Show SegmentVersion where
+  show (SegmentVersion v) = show v
 
-newtype ReferenceSegment = ReferenceSegment Int deriving (Show, Eq, Read)
+
+newtype ReferenceSegment = ReferenceSegment Int deriving (Eq, Read)
+
+instance Show ReferenceSegment where
+  show (ReferenceSegment s) = show s
 
 -- | aka `dat` YYYYMMDD according to ISO 8601
 type FinTSDate = Day
@@ -98,6 +122,10 @@ data SegmentHeader = SegmentHeader
   , _segmentHeaderReferenceSegment :: ReferenceSegment
   }
 
+instance Show SegmentHeader where
+  show (SegmentHeader id' num ver ref) =
+    show id' <> show num <> show ver <> show ref
+
 -- | Alphanumeric Length: ..35
 newtype ScrollReference = ScrollReference T.Text deriving (Show, Eq)
 
@@ -146,6 +174,10 @@ data CustomerSystemStatus =
 
 data YesNo = Yes | No
 
+instance Show YesNo where
+  show Yes = "y"
+  show No  = "n"
+
 -- | 1..4
 newtype TANProcess = TANProcess Int deriving (Show, Eq)
 
@@ -185,7 +217,7 @@ newtype Challenge = Challenge T.Text deriving (Show, Eq)
 
 -- | For use in a Two-Step-Verification process with unidirectional coupling.
 -- | In addition to the `Challenge` the data has to be provided e.g. via an optical interface.
-newtype ChallengeHHD_UC = ChallengeHHD_UC ByteString
+newtype ChallengeHHD_UC = ChallengeHHD_UC BSL.ByteString
 
 -- | Segment with Bank or Customer origin
 data Segment =
@@ -275,3 +307,25 @@ data Segment =
     -- | Symbolic name of TAN Data medium e.g. `TAN-Generator`
     , _hitanTitleTANDataMedium :: T.Text
     }
+  -- | C.2.1.2.2 Segmentversion 7 (SEPA) a.)
+  | HKSAL
+  { _hksalSegmentHeader          :: SegmentHeader
+  , _hksalCustomerAccount        :: IntCustomerAccount
+  , _hksalAllAccounts            :: YesNo
+  , _hksalMaximumNumberOfEntries :: Int
+  , _hksalScrollReference        :: ScrollReference
+  }
+
+instance Show Segment where
+  show (HKSAL h ca aa mn sr) = show h <> show ca <> show aa <> show mn <> show sr
+  show _ = mempty
+
+askHksal :: String -> Segment -> IO (Wreq.Response BSL.ByteString)
+askHksal url a = do
+  let opts = Wreq.defaults & Wreq.manager .~ Left (opensslManagerSettings context)
+      content = Base64.encode $ BSC8.pack $ show a
+  withOpenSSL $
+    Wreq.postWith opts url content
+
+sampleHeader :: SegmentHeader
+sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 4) (ReferenceSegment 1)
