@@ -30,6 +30,7 @@ library
                      , base64-bytestring >= 1.0
                      , bytestring >= 0.10
                      , currency-codes == 2.0.0.0
+                     , data-default >= 0.7
                      , http-client-openssl >= 0.2
                      , iso3166-country-codes == 0.20140203.8
                      , lens >= 4.10
@@ -53,6 +54,7 @@ test-suite test
                      , base64-bytestring >= 1.0
                      , bytestring >= 0.10
                      , currency-codes == 2.0.0.0
+                     , data-default >= 0.7
                      , fints
                      , http-client-openssl >= 0.2
                      , iso3166-country-codes == 0.20140203.8

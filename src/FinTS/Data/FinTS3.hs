@@ -13,6 +13,7 @@ import           Data.ByteString as BS
 import qualified Data.ByteString.Base64 as Base64
 import qualified Data.ByteString.Char8 as BSC8
 import qualified Data.ByteString.Lazy as BSL
+import           Data.Default (Default(..))
 import           Data.Monoid ((<>))
 import qualified Data.Text as T
 import           Data.Time.Calendar (Day)
@@ -51,18 +52,21 @@ newtype SegmentNumber = SegmentNumber Int deriving (Eq, Read)
 instance Show SegmentNumber where
   show (SegmentNumber n) = show n
 
+instance Default SegmentNumber where
+  def = SegmentNumber 1
+
 -- TODO list of predefined segmentversions
 -- | Version number for documentation of the segment format.
--- | version: 1 length: ..3
+--   The segment version is incremented for every segment change.
+--   version: 1 length: ..3
 newtype SegmentVersion = SegmentVersion Int deriving (Eq, Read)
+
 instance Show SegmentVersion where
   show (SegmentVersion v) = show v
 
-
-newtype ReferenceSegment = ReferenceSegment Int deriving (Eq, Read)
-
-instance Show ReferenceSegment where
-  show (ReferenceSegment s) = show s
+segmentVersion :: SegmentIdentifier -> SegmentVersion
+segmentVersion ID_HKSAL = SegmentVersion 7
+segmentVersion _        = SegmentVersion 0
 
 -- | aka `dat` YYYYMMDD according to ISO 8601
 type FinTSDate = Day
@@ -71,7 +75,10 @@ type FinTSDate = Day
 type FinTime = LocalTime
 
 -- | aka `ìd` Alphanumeric, Length: ..30
-newtype FinID = FinID T.Text deriving (Show, Eq)
+newtype FinID = FinID T.Text deriving Eq
+
+instance Show FinID where
+  show (FinID a) = T.unpack a
 
 -- Syntax characters
 
@@ -177,7 +184,6 @@ data CustomerSystemStatus =
   -- | 1: Customer System Identification required (others, HBCI RAH-/ RDH and PIN/TAN)
   | CustomerSystemStatusIDRequired
 
-
 data YesNo = Yes | No
 
 instance Show YesNo where
@@ -202,13 +208,65 @@ newtype ChallengeClass = ChallengeClass Int deriving (Show, Eq)
 
 newtype ParameterChallengeClass = ParameterChallengeClass T.Text deriving (Show, Eq)
 
-newtype HBCIVersion = HBCIVersion Int deriving (Show, Eq)
+-- | HBCI Version of interface specification
+data HBCIVersion =
+  -- | Version 2.0.1 - deprecated
+    HBCIVersion_2_0_1
+  -- | Version 2.1 - deprecated
+  | HBCIVersion_2_1
+  -- | Version 2.2 - deprecated
+  | HBCIVersion_2_2
+  -- | Version 3.0
+  | HBCIVersion_3_0
+  deriving Eq
 
-newtype DialogID = DialogID FinID deriving (Show, Eq)
+-- | According to DataDictionary HBCI-Version
+instance Show HBCIVersion where
+  show HBCIVersion_2_0_1 = "201"
+  show HBCIVersion_2_1   = "210"
+  show HBCIVersion_2_2   = "220"
+  show HBCIVersion_3_0   = "300"
 
+instance Default HBCIVersion where
+  def = HBCIVersion_3_0
+
+-- | Matches a message to FinTS-Dialog.
+--   The initial customer message starts with DialogID "0".
+--   The bank response message contains the unique DialogID to be used for all the following
+--   messages of the dialog. It's the responsibility of the bank to guarantee system wide uniqueness.
+newtype DialogID = DialogID FinID deriving Eq
+
+instance Show DialogID where
+  show (DialogID a) = show a
+
+instance Default DialogID where
+  def = DialogID $ FinID "0"
+
+-- | Combined with the `DialogID` and `CustomerID` the `MessageNumber` can be used to unqiuely
+--   identify a message across dialogs. MessageNumbers must increase monotonnically.
+--   The message numbering starts with "1". Messages which are not numbered monotonically increasing are
+--   rejected on bank and customer side.
 newtype MessageNumber = MessageNumber Int deriving (Show, Eq)
 
-newtype ReferenceMessage = ReferenceMessage T.Text deriving (Show, Eq)
+instance Default MessageNumber where
+  def = MessageNumber 1
+
+data ReferenceMessage =
+  -- | Bank message
+    ReferenceMessage_M
+  -- | Customer message
+  | ReferenceMessage_N
+  deriving Eq
+
+instance Show ReferenceMessage where
+  show ReferenceMessage_M = "M"
+  show ReferenceMessage_N = "N"
+
+data ReferenceSegment =
+  -- | Bank message
+    ReferenceSegment_O
+  -- | Customer message
+  | ReferenceSegment_N
 
 -- | Optional in answer for the sent TAN confirmation number.
 -- | Customer has to compare this to the BEN printed on the TAN list
@@ -230,11 +288,11 @@ data Segment =
   -- | Header of message
   -- | B.5.2 Nachrichtenkopf
     HNHBK
-      { _hnhbkSegmentHeader :: SegmentHeader
-      , _hnhbkSize :: Int
-      , _hnhbkHBCIVersion :: HBCIVersion
-      , _hnhbkDialogeID :: DialogID
-      , _hnhbkMessageNumber :: MessageNumber
+      { _hnhbkSegmentHeader    :: SegmentHeader
+      , _hnhbkSize             :: Int
+      , _hnhbkHBCIVersion      :: HBCIVersion
+      , _hnhbkDialogID         :: DialogID
+      , _hnhbkMessageNumber    :: MessageNumber
       , _hnhbkReferenceMessage :: ReferenceMessage
       }
   -- | Footer of message
@@ -326,6 +384,12 @@ instance Show Segment where
   show (HKSAL h ca aa mn sr) = show h <> "+" <>  show ca <> "+" <> show aa <> "'"
   show _ = mempty
 
+ -- | Smart constructor message header
+hnhbk :: SegmentIdentifier -> Int -> Segment
+hnhbk si size =
+  let sh = SegmentHeader si def (segmentVersion si) ReferenceSegment_N
+  in HNHBK sh size HBCIVersion_3_0 def def ReferenceMessage_N
+
 askHksal :: String -> Segment -> IO (Either String BS.ByteString)
 askHksal url a = do
   let opts = Wreq.defaults & Wreq.manager .~ Left (opensslManagerSettings context)
@@ -335,5 +399,5 @@ askHksal url a = do
   print r
   return $ Base64.decode $ BSL.toStrict (r ^. Wreq.responseBody)
 
-sampleHeader :: SegmentHeader
-sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 3) (ReferenceSegment 1)
+-- sampleHeader :: SegmentHeader
+-- sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 3) (ReferenceSegment 1)
