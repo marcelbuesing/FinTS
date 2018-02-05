@@ -172,7 +172,8 @@ newtype CustomerID = CustomerID T.Text deriving (Show, Eq)
 newtype CustomerSystemID = CustomerSystemID T.Text deriving (Show, Eq)
 
 -- | Bank Identification
--- | G. DataDictionary Kreditinstitutskennung
+--  G. DataDictionary Kreditinstitutskennung
+--  Version 1, format: kik
 newtype BankID = BankID T.Text deriving (Show, Eq)
 
 -- | Customer System Status.
@@ -283,6 +284,33 @@ newtype Challenge = Challenge T.Text deriving (Show, Eq)
 -- | In addition to the `Challenge` the data has to be provided e.g. via an optical interface.
 newtype ChallengeHHD_UC = ChallengeHHD_UC BSL.ByteString
 
+data KeyKind = KeyKind_D | KeyKind_S | KeyKind_V
+
+-- | Keynumber of respective key
+type KeyNumber = Int
+
+-- | Versionnumber of respective key
+type KeyVersion = Int
+
+-- | Version 3
+data KeyName = KeyName
+  { _keyNameBankIdentification :: BankID
+  , _keyNameUserIdentification :: CustomerID
+  , _keyNameKeyKind            :: KeyKind
+  , _keyNameKeyNumber          :: KeyNumber
+  , _keyNameKeyVersion         :: KeyVersion
+  }
+
+data Certificate =
+  -- | RAH-7, RDH-3, RDH-6. RDH-7 in connection with at least one business transaction
+  --   requiring security classification 2, 3 or 4
+    Certificate_M
+  -- | RAH-9, RDH-1, RDH-5, RDH-8 and RDH-9 in connection with business transactions
+  --   requiring security classification 1 or 2
+  | Certificate_O
+  -- | DDV-1, RAH-10, RDH-2, RDH-10
+  | Certificate_N
+
 -- | Segment with Bank or Customer origin
 data Segment =
   -- | Header of message
@@ -379,6 +407,22 @@ data Segment =
   , _hksalMaximumNumberOfEntries :: Int
   , _hksalScrollReference        :: ScrollReference
   }
+  -- | B.5.1 Signaturkopf Version 4
+  | HNSHK
+  { _hnshkSegmentHeader               :: SegmentHeader
+  , _hnshkSecuriyProfile              :: SecurityProfile
+  , _hnshkSecurityFunctionEncoded     :: SecurityFunction
+  , _hnshkSecurityControlReference    :: SecurityControlRefernce
+  , _hnshkAreaSecurityApplication     :: AreaSecurityApplication
+  , _hnshkRoleSecuritySupplierEncoded :: RoleSecuritySupplier
+  , _hnshkSecurityIdentification      :: SecurityIdentification
+  , _hnshkSecurityReferenceNumber     :: SecurityReferenceNumber
+  , _hnshkSecurityDateTime            :: SecurityDateTime
+  , _hnshkHashAlgorithm               :: HashAlgorithm
+  , _hnshkSignatureAlgorithm          :: SignatureAlgorithm
+  , _hnshkKeyName                     :: KeyName
+  , _hnhskCertificate                 :: Certificate
+  }
 
 instance Show Segment where
   show (HKSAL h ca aa mn sr) = show h <> "+" <>  show ca <> "+" <> show aa <> "'"
@@ -398,6 +442,8 @@ askHksal url a = do
     Wreq.postWith opts url content
   print r
   return $ Base64.decode $ BSL.toStrict (r ^. Wreq.responseBody)
+
+-- | HNHBK(Header) HNHBS(Footer)
 
 -- sampleHeader :: SegmentHeader
 -- sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 3) (ReferenceSegment 1)
