@@ -284,6 +284,33 @@ newtype Challenge = Challenge T.Text deriving (Show, Eq)
 -- | In addition to the `Challenge` the data has to be provided e.g. via an optical interface.
 newtype ChallengeHHD_UC = ChallengeHHD_UC BSL.ByteString
 
+data SecurityMethodCode =
+    SecurityMethodCode_DDV
+  | SecurityMethodCode_RAH
+  | SecurityMethodCode_RDH
+  | SecurityMethodCode_PIN
+
+data SecurityMethodVersion =
+    SecurityMethodVersion_1
+  | SecurityMethodVersion_2
+  | SecurityMethodVersion_3
+  | SecurityMethodVersion_4
+  | SecurityMethodVersion_5
+  | SecurityMethodVersion_6
+  | SecurityMethodVersion_7
+  | SecurityMethodVersion_8
+  | SecurityMethodVersion_9
+  | SecurityMethodVersion_10
+
+-- | Data Dictionary - Sicherheitsprofil
+--   Describes the method for securing the transaction between customer and bank.
+--   The security profile is determined by the combination of security method and version.
+--   For PINTAN code must be PIN aka `SecurityMethodCode_PIN` and Version 1 aka `SecurityMethodVersion_1`.
+data SecurityProfile = SecurityProfile
+  { _securityMethodCode    :: SecurityMethodCode
+  , _securityMethodVersion :: SecurityMethodVersion
+  }
+
 data KeyKind = KeyKind_D | KeyKind_S | KeyKind_V
 
 -- | Keynumber of respective key
