@@ -302,6 +302,18 @@ data SecurityMethodVersion =
   | SecurityMethodVersion_9
   | SecurityMethodVersion_10
 
+instance Show SecurityMethodVersion where
+  show SecurityMethodVersion_1  = "1"
+  show SecurityMethodVersion_2  = "2"
+  show SecurityMethodVersion_3  = "3"
+  show SecurityMethodVersion_4  = "4"
+  show SecurityMethodVersion_5  = "5"
+  show SecurityMethodVersion_6  = "6"
+  show SecurityMethodVersion_7  = "7"
+  show SecurityMethodVersion_8  = "8"
+  show SecurityMethodVersion_9  = "9"
+  show SecurityMethodVersion_10 = "10"
+
 -- | Data Dictionary - Sicherheitsprofil
 --   Describes the method for securing the transaction between customer and bank.
 --   The security profile is determined by the combination of security method and version.
@@ -309,6 +321,69 @@ data SecurityMethodVersion =
 data SecurityProfile = SecurityProfile
   { _securityMethodCode    :: SecurityMethodCode
   , _securityMethodVersion :: SecurityMethodVersion
+  }
+
+-- | Since FinTS 3.0 only informational, actual control via securit-profile and -classes.
+data SecurityFunction =
+  -- | Non-Repudiation for Origin, for RAH, RDH (NRO)
+    SecurityFunction_1
+  -- | Message Origin Authentication, for RAH, RDH and DDV (AUT)
+  | SecurityFunction_2
+  -- | Encryption and compression (ENC)
+  | SecurityFunction_3
+
+instance Show SecurityFunction where
+  show SecurityFunction_1 = "1"
+  show SecurityFunction_2 = "2"
+  show SecurityFunction_3 = "3"
+
+-- | Must equal in signature-header and -footer.
+--   Version: 1, format: an, length ..14
+data SecurityControlReference = SecurityControlReference T.Text deriving Eq
+
+-- | Security relevant message identification, used to avoid double submission.
+--   aka Sicherheitsreferenznummer
+--   Version: 1, format: num, length ..16
+newtype SecurityReferenceNumber = SecurityReferenceNumber Int deriving Eq
+
+instance Show SecurityReferenceNumber where
+  show (SecurityReferenceNumber a) = show a
+
+data HashAlgorithmEncoded =
+    SHA_1
+  | SHA_256
+  | SHA_384
+  | SHA_512
+  | SHA_256_SHA_256
+  | MutuallyAgreed
+
+instance Show HashAlgorithmEncoded where
+  show SHA_1   = "1"
+  show SHA_256 = "3"
+  show SHA_384 = "4"
+  show SHA_512 = "5"
+  show SHA_256_SHA_256 = "6"
+  show MutuallyAgreed  = "999"
+
+data AlgorithmParameterTitle =
+  -- | Initialization value, clear text
+  IVC
+
+instance Show AlgorithmParameterTitle where
+  show IVC = "1"
+
+data AlgorithmUsageEncoded =
+  -- | OHA
+  OwnerHashing
+
+instance Show AlgorithmUsageEncoded where
+  show OwnerHashing = "1"
+
+data HashAlgorithm = HashAlgorithm
+  { _hashAlgorithmUsageEncoded   :: AlgorithmUsageEncoded
+  , _hashAlgorithmEncoded        :: HashAlgorithmEncoded
+  , _hashAlgorithmParameterTitle :: AlgorithmParameterTitle
+  , _hashAlgorithmParameterValue :: ByteString
   }
 
 data KeyKind = KeyKind_D | KeyKind_S | KeyKind_V
@@ -439,7 +514,7 @@ data Segment =
   { _hnshkSegmentHeader               :: SegmentHeader
   , _hnshkSecuriyProfile              :: SecurityProfile
   , _hnshkSecurityFunctionEncoded     :: SecurityFunction
-  , _hnshkSecurityControlReference    :: SecurityControlRefernce
+  , _hnshkSecurityControlReference    :: SecurityControlReference
   , _hnshkAreaSecurityApplication     :: AreaSecurityApplication
   , _hnshkRoleSecuritySupplierEncoded :: RoleSecuritySupplier
   , _hnshkSecurityIdentification      :: SecurityIdentification
