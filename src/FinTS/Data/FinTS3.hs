@@ -287,10 +287,10 @@ newtype ChallengeHHD_UC = ChallengeHHD_UC BSL.ByteString
 data KeyKind = KeyKind_D | KeyKind_S | KeyKind_V
 
 -- | Keynumber of respective key
-type KeyNumber = Int
+newtype KeyNumber = KeyNumber Int
 
 -- | Versionnumber of respective key
-type KeyVersion = Int
+newtype KeyVersion = KeyVersion Int
 
 -- | Version 3
 data KeyName = KeyName
