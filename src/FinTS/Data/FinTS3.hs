@@ -350,20 +350,20 @@ instance Show SecurityReferenceNumber where
   show (SecurityReferenceNumber a) = show a
 
 data HashAlgorithmEncoded =
-    SHA_1
-  | SHA_256
-  | SHA_384
-  | SHA_512
-  | SHA_256_SHA_256
-  | MutuallyAgreed
+    HashAlgorithmSHA_1
+  | HashAlgorithmSHA_256
+  | HashAlgorithmSHA_384
+  | HashAlgorithmSHA_512
+  | HashAlgorithmSHA_256_SHA_256
+  | HashAlgorithmMutuallyAgreed
 
 instance Show HashAlgorithmEncoded where
-  show SHA_1   = "1"
-  show SHA_256 = "3"
-  show SHA_384 = "4"
-  show SHA_512 = "5"
-  show SHA_256_SHA_256 = "6"
-  show MutuallyAgreed  = "999"
+  show HashAlgorithm_SHA_1   = "1"
+  show HashAlgorithm_SHA_256 = "3"
+  show HashAlgorithm_SHA_384 = "4"
+  show HashAlgorithm_SHA_512 = "5"
+  show HashAlgorithm_SHA_256_SHA_256 = "6"
+  show HashAlgorithm_MutuallyAgreed  = "999"
 
 data AlgorithmParameterTitle =
   -- | Initialization value, clear text
@@ -372,18 +372,113 @@ data AlgorithmParameterTitle =
 instance Show AlgorithmParameterTitle where
   show IVC = "1"
 
-data AlgorithmUsageEncoded =
+data HashAlgorithmUsageEncoded =
   -- | OHA
   OwnerHashing
 
-instance Show AlgorithmUsageEncoded where
+instance Show HashAlgorithmUsageEncoded where
   show OwnerHashing = "1"
 
 data HashAlgorithm = HashAlgorithm
-  { _hashAlgorithmUsageEncoded   :: AlgorithmUsageEncoded
+  { _hashAlgorithmUsageEncoded   :: HashAlgorithmUsageEncoded
   , _hashAlgorithmEncoded        :: HashAlgorithmEncoded
   , _hashAlgorithmParameterTitle :: AlgorithmParameterTitle
   , _hashAlgorithmParameterValue :: ByteString
+  }
+
+-- | Information about usage of signature algorithm
+data SignatureAlgorithmUsageEncoded =
+  -- | OSG
+  OwnerSigning
+
+instance Show SignatureAlgorithmUsageEncoded where
+  show OwnerSigning = "6"
+
+data OperationModeEncoded =
+    OperationMode_CipherBlockChaining
+  | OperationMode_ISO9796_1
+  | OperationMode_ISO9796_2
+  | OperationMode_RSASSA_PKCS
+  | OperationMode_RSASSA_PSS
+  | OperationMode_MutuallyAgreed
+
+instance Show OperationModeEncoded where
+  show OperationMode_CipherBlockChaining = "2"
+  show OperationMode_ISO9796_1           = "16"
+  show OperationMode_ISO9796_2           = "17"
+  show OperationMode_RSASSA_PKCS         = "18"
+  show OperationMode_RSASSA_PSS          = "19"
+  show OperationMode_MutuallyAgreed      = "999"
+
+data SignatureAlgorithmEncoded =
+  -- | for DDV
+    DES
+  -- | for RAH and RDH
+  | RSA
+
+instance Show SignatureAlgorithmEncoded where
+  show DES = "1"
+  show RSA = "10"
+
+data SignatureAlgorithm = SignatureAlgorithm
+  { _sinatureAlgorithmUsageEncoded         :: SignatureAlgorithmUsageEncoded
+  , _sinatureAlgorithmEncoded              :: SignatureAlgorithmEncoded
+  , _sinatureAlgorithmOperationModeEncoded :: OperationModeEncoded
+  }
+
+data AreaSecurityApplication =
+  -- | SHM
+  SignatureHeadAndHBCIPayload
+  -- | SHT
+  | SignatureHeaderToSignatureFooter
+
+data RoleSecuritySupplierEncoded =
+  -- | The signer is the publisher of the message
+    ISS
+  -- | The signer supports the content
+  | CON
+  -- | The signer is witness, but not responsible for the content
+  | WIT
+
+instance Show RoleSecuritySupplierEncoded where
+  show ISS = "1"
+  show CON = "3"
+  show WIT = "4"
+
+data PartyID =
+  -- | Security media = Software
+    PartyID_M
+  -- | Otherwise
+  | PartyID_N
+
+data PartyTitle =
+  -- | MS
+    MessageSender
+  -- | MR
+  | MessageReceiver
+
+-- | Identification details of partys involved in the security process.
+data SecurityIdentificationDetails = SecurityIdentificationDetails
+  { _securityIdentificationDetailsPartyTitle :: PartyTitle
+  , _securityIdentificationDetailsCID        :: ByteString
+  , _securityIdentificationDetailsPartyID    :: PartyID
+  }
+
+data DateTimeTitleEncoded =
+  -- | STS
+    SecurityTimestamp
+  -- | CRT
+  | CertificateRevocationTime
+
+-- | Contains meaning of timestamp
+instance Show DateTimeTitleEncoded where
+  show SecurityTimestamp         = "1"
+  show CertificateRevocationTime = "6"
+
+data SecurityDateTime = SecurityDateTime
+  { _securityDateTimeTitleEncoded :: DateTimeTitleEncoded
+  , _securityDateTimeDate         :: FinTSDate
+  , _securityDateTimeTime         :: FinTime
   }
 
 data KeyKind = KeyKind_D | KeyKind_S | KeyKind_V
@@ -516,8 +611,8 @@ data Segment =
   , _hnshkSecurityFunctionEncoded     :: SecurityFunction
   , _hnshkSecurityControlReference    :: SecurityControlReference
   , _hnshkAreaSecurityApplication     :: AreaSecurityApplication
-  , _hnshkRoleSecuritySupplierEncoded :: RoleSecuritySupplier
-  , _hnshkSecurityIdentification      :: SecurityIdentification
+  , _hnshkRoleSecuritySupplierEncoded :: RoleSecuritySupplierEncoded
+  , _hnshkSecurityIdentification      :: SecurityIdentificationDetails
   , _hnshkSecurityReferenceNumber     :: SecurityReferenceNumber
   , _hnshkSecurityDateTime            :: SecurityDateTime
   , _hnshkHashAlgorithm               :: HashAlgorithm
@@ -544,8 +639,3 @@ askHksal url a = do
     Wreq.postWith opts url content
   print r
   return $ Base64.decode $ BSL.toStrict (r ^. Wreq.responseBody)
-
--- | HNHBK(Header) HNHBS(Footer)
-
--- sampleHeader :: SegmentHeader
--- sampleHeader = SegmentHeader ID_HKSAL (SegmentNumber 1) (SegmentVersion 3) (ReferenceSegment 1)
